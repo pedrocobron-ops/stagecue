@@ -4,7 +4,7 @@ Sistema profissional de operação de som para teatro, **100% web**: acesse de
 qualquer computador com login e senha, monte a lista de cues do espetáculo,
 suba seus áudios para a nuvem e opere o show com o botão **GO**.
 
-**Acesso online:** https://jcaqjlrzmrtzjyfbljxh.supabase.co/functions/v1/stagecue
+**Acesso online:** https://wriwfpqdovcccdggektm.supabase.co/functions/v1/stagecue
 
 ## Por que o StageCue?
 
