@@ -343,6 +343,7 @@
       <label for="authName">Seu nome</label>
       <input id="authName" placeholder="Ex.: Pedro">
     </div>
+    <input id="authCompany" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" placeholder="Empresa">
     <label for="authEmail">E-mail</label>
     <input id="authEmail" type="email" placeholder="voce@exemplo.com" autocomplete="username">
     <label for="authPass">Senha</label>
@@ -397,7 +398,7 @@
       <button id="preshowBtn" title="Checklist antes de abrir a casa">🎬 Pré-show</button>
       <button id="modeBtn" class="modeBtn">✏️ Edição</button>
     </div>
-    <div class="saveState" id="saveState" title="Estado do salvamento na nuvem"></div>
+    <div class="saveState" id="saveState" title="Salvamento: ✓ salvo = na nuvem · 💾 só neste dispositivo = sem conexão, exporte um backup"></div>
   </div>
 
   <div class="main">
@@ -469,7 +470,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase.js"></script>
 <script>
 'use strict';
 const SUPABASE_URL = "https://wriwfpqdovcccdggektm.supabase.co";
@@ -483,6 +484,7 @@ const uuid = () => crypto.randomUUID();
 const dbToGain = db => db <= -60 ? 0 : Math.pow(10, db / 20);
 const fmtT = s => { if (s == null || !isFinite(s)) return '—'; s = Math.max(0, s); const m = Math.floor(s / 60), ss = s - m * 60; return m + ':' + (ss < 10 ? '0' : '') + ss.toFixed(1); };
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeColor = c => /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : '';
 
 // ============ ESTADO ============
 let user = null;
@@ -537,8 +539,9 @@ document.addEventListener('visibilitychange', () => {
 
 // estado de operação (recuperação após travar/recarregar)
 function saveOpState() {
-  if (!show) return;
-  lsSet('stagecue_state_' + show.id, { standbyIdx, showStartAt, ts: Date.now() });
+  if (!show || editMode) return; // só durante a operação
+  const elapsed = showStartAt != null ? Math.floor((Date.now() - showStartAt) / 1000) : 0;
+  lsSet('stagecue_state_' + show.id, { standbyIdx, elapsed, ts: Date.now() });
 }
 
 // ============ DESFAZER ============
@@ -548,6 +551,7 @@ function pushUndo() {
   if (!show) return;
   undoStack.push(JSON.stringify(show.data));
   if (undoStack.length > 60) undoStack.shift();
+  lastUndoTag = ''; lastUndoT = 0; // não coalescer através de um snapshot estrutural
 }
 function pushUndoTagged(tag) {
   const now = Date.now();
@@ -559,6 +563,20 @@ function doUndo() {
   show.data = JSON.parse(undoStack.pop());
   if (standbyIdx > show.data.cues.length) standbyIdx = show.data.cues.length;
   selectedId = null;
+  lastUndoTag = ''; lastUndoT = 0;
+  // re-vincula instâncias tocando aos novos objetos de cue (evita referência órfã)
+  for (const inst of instances.values()) {
+    const c = show.data.cues.find(x => x.id === inst.cue.id);
+    if (c) inst.cue = c;
+  }
+  // reaplica master/saída (que vivem no áudio, não só nos dados)
+  if (typeof show.data.masterDb === 'number') {
+    $('masterFader').value = show.data.masterDb;
+    $('masterDb').textContent = show.data.masterDb.toFixed(1) + ' dB';
+    if (masterGain && actx) masterGain.gain.setTargetAtTime(dbToGain(show.data.masterDb), actx.currentTime, 0.02);
+  }
+  applySink();
+  recomputeDucking();
   markDirty(); renderAll(); toast('↩ Desfeito');
 }
 
@@ -588,7 +606,7 @@ $('authBtn').onclick = async () => {
       if (pass.length < 8) throw new Error('A senha precisa ter no mínimo 8 caracteres.');
       const r = await fetch(FN_BASE + '/signup', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, password: pass, name: $('authName').value.trim() })
+        body: JSON.stringify({ email, password: pass, name: $('authName').value.trim(), company: $('authCompany').value })
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Falha ao criar conta.');
@@ -600,13 +618,49 @@ $('authBtn').onclick = async () => {
   } finally { $('authBtn').disabled = false; }
 };
 
-sb.auth.onAuthStateChange((_ev, session) => {
+sb.auth.onAuthStateChange((ev, session) => {
   const wasUser = user;
   user = session ? session.user : null;
+  if (ev === 'SIGNED_OUT') purgeLocalCaches();
   if (user && !wasUser) { showScreen('shows'); loadShows(); }
   else if (!user) showScreen('auth');
 });
-$('logoutBtn').onclick = () => sb.auth.signOut();
+function purgeLocalCaches() {
+  Object.keys(localStorage).filter(k => k.startsWith('stagecue_')).forEach(k => localStorage.removeItem(k));
+  try { indexedDB.deleteDatabase('stagecue'); } catch (e) {}
+  buffers.clear(); idbP = null;
+}
+$('logoutBtn').onclick = async () => { await flushSave(); purgeLocalCaches(); sb.auth.signOut(); };
+
+// coage o backup importado ao schema (defesa contra XSS via campos numéricos)
+const NUMF = ['preWait','followDelay','volumeDb','pan','fadeIn','fadeOut','startAt','rate','bassDb','trebleDb','duckDb','fadeTime','targetDb','stopFade'];
+const STRF = ['name','notes','number','fileName','fileKey','targetNumber','stopTarget','color','id'];
+function sanitizeShowData(d) {
+  d = (d && typeof d === 'object') ? d : {};
+  const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+  d.masterDb = typeof d.masterDb === 'number' ? d.masterDb : 0;
+  d.sinkId = typeof d.sinkId === 'string' ? d.sinkId : '';
+  d.files = Array.isArray(d.files) ? d.files.map(f => ({
+    key: String((f && f.key) || ''), name: String((f && f.name) || ''),
+    size: num(f && f.size), duration: (f && f.duration != null) ? num(f.duration) : null
+  })) : [];
+  d.cues = Array.isArray(d.cues) ? d.cues.map(c => {
+    c = (c && typeof c === 'object') ? c : {};
+    const o = {};
+    ['audio','fade','stop','note'].includes(c.type) ? o.type = c.type : o.type = 'note';
+    STRF.forEach(k => { if (c[k] != null) o[k] = String(c[k]).slice(0, 500); });
+    NUMF.forEach(k => { if (c[k] != null) o[k] = num(c[k]); });
+    o.endAt = c.endAt == null ? null : num(c.endAt);
+    o.loop = !!c.loop; o.stopAfter = !!c.stopAfter;
+    ['none','after','end'].includes(c.follow) ? o.follow = c.follow : o.follow = 'none';
+    ['log','linear','scurve'].includes(c.fadeCurve) && (o.fadeCurve = c.fadeCurve);
+    ['log','linear','scurve'].includes(c.curve) && (o.curve = c.curve);
+    if (!o.id) o.id = uuid();
+    if (!o.number) o.number = '';
+    return o;
+  }) : [];
+  return d;
+}
 
 function showScreen(s) {
   $('authScreen').classList.toggle('hidden', s !== 'auth');
@@ -682,39 +736,48 @@ $('importInput').onchange = async () => {
   try {
     const j = JSON.parse(await f.text());
     if (!j || j.stagecue !== 1 || !j.data) throw new Error('Arquivo não é um backup do StageCue.');
+    const clean = sanitizeShowData(j.data);
+    // áudios de outra conta não são acessíveis por RLS: limpa a referência, mantém o nome como dica
+    const alien = clean.cues.some(c => c.fileKey && !c.fileKey.startsWith(user.id + '/'));
+    if (alien) clean.cues.forEach(c => { if (c.fileKey && !c.fileKey.startsWith(user.id + '/')) c.fileKey = ''; });
     const { error } = await sb.from('stagecue_shows')
-      .insert({ user_id: user.id, name: (j.name || 'Importado') + ' (importado)', data: j.data });
+      .insert({ user_id: user.id, name: String(j.name || 'Importado').slice(0,120) + ' (importado)', data: clean });
     if (error) throw new Error(error.message);
-    toast('✓ Espetáculo importado'); loadShows();
-  } catch (e) { toast('⚠ ' + e.message); }
+    toast(alien ? '✓ Importado — reenvie os áudios (eram de outra conta)' : '✓ Espetáculo importado', 'ok'); loadShows();
+  } catch (e) { toast('⚠ ' + e.message, 'err'); }
 };
 
 async function openShow(id) {
+  await flushSave(); // não perder edição pendente do show anterior
   let data = null;
   try {
     const r = await sb.from('stagecue_shows').select('*').eq('id', id).single();
     if (!r.error) data = r.data;
   } catch (e) {}
+  const local = lsGet('stagecue_show_' + id);
   if (!data) {
-    data = lsGet('stagecue_show_' + id);
+    data = local;
     if (data) toast('📴 Sem internet — abrindo cópia local');
     else { toast('Erro ao abrir o espetáculo (sem internet e sem cópia local).'); return; }
+  } else if (local && local.dirtyAt && (!data.updated_at || local.dirtyAt > new Date(data.updated_at).getTime())) {
+    // trabalho offline mais novo que a nuvem: preserva o local e re-sincroniza
+    data = local;
+    toast('↻ Recuperando edições locais não sincronizadas');
+    show = data; show.data = show.data || {}; setTimeout(flushSave, 300);
   }
   show = data;
-  show.data = show.data || {};
-  show.data.cues = show.data.cues || [];
-  show.data.files = show.data.files || [];
-  if (typeof show.data.masterDb !== 'number') show.data.masterDb = 0;
+  show.data = sanitizeShowData(show.data);
   lsSet('stagecue_show_' + show.id, show);
   undoStack.length = 0;
   selectedId = null; standbyIdx = 0; showStartAt = null;
   // recuperação: se o navegador caiu/recarregou no meio do show, retoma de onde parou
   const st = lsGet('stagecue_state_' + show.id);
   if (st && st.standbyIdx > 0 && Date.now() - (st.ts || 0) < 6 * 3600 * 1000) {
-    const cueN = show.data.cues[Math.min(st.standbyIdx, show.data.cues.length - 1)];
-    if (confirm('Retomar o show de onde parou? (standby no cue ' + (cueN ? cueN.number : st.standbyIdx) + ')')) {
-      standbyIdx = Math.min(st.standbyIdx, show.data.cues.length);
-      showStartAt = st.showStartAt || null;
+    const idx = Math.min(st.standbyIdx, show.data.cues.length);
+    const cueN = show.data.cues[Math.min(idx, show.data.cues.length - 1)];
+    if (confirm('Retomar o show de onde parou? (standby no cue ' + (cueN ? cueN.number : idx) + ')')) {
+      standbyIdx = idx;
+      showStartAt = st.elapsed ? Date.now() - st.elapsed * 1000 : null;
     } else localStorage.removeItem('stagecue_state_' + show.id);
   }
   holdWakeLock();
@@ -729,19 +792,33 @@ async function openShow(id) {
   renderAll();
   preloadAll();
 }
-$('backBtn').onclick = () => { stopAll(0.1); releaseWakeLock(); showScreen('shows'); loadShows(); };
+$('backBtn').onclick = async () => { await flushSave(); stopAll(0.1); releaseWakeLock(); showScreen('shows'); loadShows(); };
 
 function markDirty() {
   $('saveState').textContent = 'salvando…';
-  if (show) lsSet('stagecue_show_' + show.id, show); // cópia local imediata
+  if (show) {
+    show.dirtyAt = Date.now();
+    lsSet('stagecue_show_' + show.id, show); // cópia local imediata (com marca de pendência)
+  }
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    try {
-      const { error } = await sb.from('stagecue_shows')
-        .update({ data: show.data, updated_at: new Date().toISOString() }).eq('id', show.id);
-      $('saveState').textContent = error ? '💾 local' : '✓ salvo';
-    } catch (e) { $('saveState').textContent = '💾 local'; }
-  }, 700);
+  saveTimer = setTimeout(flushSave, 700);
+}
+// grava na nuvem AGORA; captura id/data no momento da chamada (não vaza p/ outro show)
+async function flushSave() {
+  clearTimeout(saveTimer); saveTimer = null;
+  if (!show) return;
+  const id = show.id, sh = show, payload = JSON.parse(JSON.stringify(show.data));
+  try {
+    const { data, error } = await sb.from('stagecue_shows')
+      .update({ data: payload, updated_at: new Date().toISOString() }).eq('id', id).select('id');
+    if (error || !data || data.length === 0) {
+      if (show === sh) $('saveState').textContent = '💾 só neste dispositivo';
+    } else {
+      delete sh.dirtyAt;
+      lsSet('stagecue_show_' + id, sh);
+      if (show === sh) $('saveState').textContent = '✓ salvo';
+    }
+  } catch (e) { if (show === sh) $('saveState').textContent = '💾 só neste dispositivo'; }
 }
 
 // exportar backup
@@ -789,10 +866,11 @@ function audioTimer(sec, cb) {
   src.start(); src.stop(ctx.currentTime + Math.max(0.001, sec));
   return { cancel: () => { src.onended = null; try { src.stop(); } catch (e) {} try { g.disconnect(); } catch (e) {} } };
 }
-function addWait(sec, cb, label) {
+function addWait(sec, cb, label, cueNumber) {
   const id = uuid();
   const t = audioTimer(sec, () => { pendingWaits.delete(id); renderTransport(); cb(); });
   t.label = label || '';
+  t.cueNumber = cueNumber;
   pendingWaits.set(id, t);
   if (label) renderTransport();
 }
@@ -848,15 +926,17 @@ async function preloadAll() {
 function playCue(cue, opts) {
   if (cue.type !== 'audio' || !cue.fileKey) return;
   opts = opts || {};
-  if (cue.preWait > 0 && !opts.resumeOf) addWait(cue.preWait, () => startAudioInstance(cue, opts), '⏳ ' + cue.number);
+  if (cue.preWait > 0 && !opts.resumeOf) addWait(cue.preWait, () => startAudioInstance(cue, opts), '⏳ ' + cue.number, cue.number);
   else startAudioInstance(cue, opts);
 }
 
 async function startAudioInstance(cue, opts) {
   opts = opts || {};
+  const epoch = playEpoch;
   let buf;
   try { buf = await getBuffer(cue.fileKey); }
-  catch (e) { toast('⚠ ' + e.message); return; }
+  catch (e) { toast('⚠ ' + e.message, 'err'); return; }
+  if (epoch !== playEpoch) { if (opts.resumeOf) instances.delete(opts.resumeOf.id); return; } // pânico/stop enquanto carregava
   const ctx = ensureCtx();
   const rate = Math.min(4, Math.max(0.25, cue.rate || 1));
   const startAt = Math.max(0, cue.startAt || 0);
@@ -864,7 +944,7 @@ async function startAudioInstance(cue, opts) {
   const regionDur = endAt - startAt;                     // em segundos de buffer
   const resume = opts.resumeOf || null;
   const playedBuf = resume ? resume.pausedPos : Math.max(0, opts.offset || 0); // já tocado (segundos de buffer)
-  if (playedBuf >= regionDur && !cue.loop) { if (resume) instances.delete(resume.id); return; }
+  if (playedBuf >= regionDur && !cue.loop) { if (resume) { instances.delete(resume.id); recomputeDucking(); renderTransport(); renderCueRowsState(); } return; }
 
   const src = ctx.createBufferSource();
   src.buffer = buf;
@@ -890,29 +970,30 @@ async function startAudioInstance(cue, opts) {
   out.connect(masterGain);
 
   const vol = dbToGain(cue.volumeDb || 0);
+  const baseVol = (resume && resume.pausedGain != null) ? Math.max(resume.pausedGain, 0.0001) : vol;
   const now = ctx.currentTime;
   const curve = cue.fadeCurve || 'log';
   const fadeIn = Math.max(0, cue.fadeIn || 0);
   if (fadeIn > 0 && !resume && !opts.offset) {
     gain.gain.setValueAtTime(0.0001, now);
     scheduleRamp(gain.gain, 0.0001, Math.max(vol, 0.0001), now, fadeIn, curve);
-  } else gain.gain.setValueAtTime(vol, now);
+  } else gain.gain.setValueAtTime(baseVol, now);
 
   const remainBuf = cue.loop ? regionDur : (regionDur - playedBuf);
   const remainWall = remainBuf / rate;
   if (cue.loop) { src.loopStart = startAt; src.loopEnd = endAt; src.start(now, startAt + (playedBuf % regionDur)); }
   else src.start(now, startAt + playedBuf, remainBuf);
 
-  // fade-out programado no fim (se não for loop); nunca sobrepor a curva do fade-in
+  // fade-out programado no fim (fade parcial se sobrar menos que a duração; nunca invade o fade-in)
   const fadeOut = Math.max(0, cue.fadeOut || 0);
-  if (!cue.loop && fadeOut > 0 && fadeOut < remainWall) {
+  if (!cue.loop && fadeOut > 0) {
     const fiEnd = (fadeIn > 0 && !resume && !opts.offset) ? now + fadeIn + 0.03 : now;
     const foStart = Math.max(now + remainWall - fadeOut, fiEnd);
     const foDur = now + remainWall - foStart;
     if (foDur > 0.05) {
       try {
-        gain.gain.setValueAtTime(Math.max(vol, 0.0001), foStart);
-        scheduleRamp(gain.gain, Math.max(vol, 0.0001), 0.0001, foStart, foDur, curve);
+        gain.gain.setValueAtTime(Math.max(baseVol, 0.0001), foStart);
+        scheduleRamp(gain.gain, Math.max(baseVol, 0.0001), 0.0001, foStart, foDur, curve);
       } catch (e) { /* agendamento conflitante nunca deve impedir o cue de tocar */ }
     }
   }
@@ -923,13 +1004,14 @@ async function startAudioInstance(cue, opts) {
     startT: now, playedBuf, regionDur, rate, loop: !!cue.loop,
     paused: false,
     armFollow: resume ? inst.armFollow : !!opts.armFollow,
+    followIdx: resume ? inst.followIdx : opts.followIdx,
   });
   instances.set(inst.id, inst);
   src.onended = () => {
-    if (inst.paused) return;
+    if (inst.paused || instances.get(inst.id) !== inst) return;
     instances.delete(inst.id);
     recomputeDucking(); renderTransport(); renderCueRowsState();
-    if (inst.armFollow && cue.follow === 'end') { inst.armFollow = false; go(); }
+    if (inst.armFollow && inst.cue.follow === 'end' && standbyIdx === inst.followIdx) { inst.armFollow = false; go(); }
   };
   recomputeDucking(); renderTransport(); renderCueRowsState();
 }
@@ -960,10 +1042,27 @@ function instPos(inst) { // posição em segundos de buffer dentro do recorte
   return Math.min(pos, inst.regionDur);
 }
 
+// re-agenda o fade-out programado a partir do nível atual (após automação ao vivo)
+function rescheduleFadeOut(inst, level) {
+  const cue = inst.cue, fadeOut = Math.max(0, cue.fadeOut || 0);
+  if (inst.loop || !fadeOut || inst.paused) return;
+  const now = actx.currentTime;
+  const remainWall = (inst.regionDur - instPos(inst)) / inst.rate;
+  const foStart = Math.max(now + remainWall - fadeOut, now);
+  const foDur = now + remainWall - foStart;
+  if (foDur > 0.05) {
+    try {
+      inst.gain.gain.setValueAtTime(Math.max(level, 0.0001), foStart);
+      scheduleRamp(inst.gain.gain, Math.max(level, 0.0001), 0.0001, foStart, foDur, cue.fadeCurve || 'log');
+    } catch (e) {}
+  }
+}
+
 // pausa/retomada por cue
 function pauseInst(inst) {
   if (inst.paused) return;
   inst.pausedPos = instPos(inst);
+  inst.pausedGain = inst.gain.gain.value;
   inst.paused = true;
   inst.src.onended = null;
   try { inst.src.stop(); } catch (e) {}
@@ -974,24 +1073,42 @@ function resumeInst(inst) {
   startAudioInstance(inst.cue, { resumeOf: inst });
 }
 
-function fadeInstances(targetNumber, fadeTime, targetDb, stopAfter, curve) {
+// compara números de cue tolerando '05'/'5' e '1.50'/'1.5'
+function sameNumber(a, b) {
+  if (String(a) === String(b)) return true;
+  const na = parseFloat(a), nb = parseFloat(b);
+  return isFinite(na) && isFinite(nb) && na === nb;
+}
+// para/faz fade nas instâncias do número alvo (ou todas). instId limita a UMA instância.
+function fadeInstances(targetNumber, fadeTime, targetDb, stopAfter, curve, instId) {
   if (!actx) return;
   const t = Math.max(0.05, fadeTime || 0.05);
   const now = actx.currentTime;
+  // cancela pré-esperas do alvo (um cue "parado" não pode começar depois)
+  if (stopAfter) for (const [id, w] of pendingWaits) {
+    if (w.cueNumber != null && (!targetNumber || sameNumber(w.cueNumber, targetNumber))) { w.cancel(); pendingWaits.delete(id); }
+  }
   for (const inst of instances.values()) {
-    if (targetNumber && String(inst.cue.number) !== String(targetNumber)) continue;
+    if (instId && inst.id !== instId) continue;
+    if (targetNumber && !sameNumber(inst.cue.number, targetNumber)) continue;
     if (stopAfter) inst.armFollow = false; // parada manual não dispara follow
-    if (inst.paused) { if (stopAfter) instances.delete(inst.id); continue; }
+    if (inst.paused) { if (stopAfter) { instances.delete(inst.id); } continue; }
     const target = stopAfter ? 0.0001 : dbToGain(targetDb == null ? -60 : targetDb);
     rampTo(inst.gain.gain, target, now, t, curve || 'log');
-    if (stopAfter) { inst.src.onended = null; try { inst.src.stop(now + t + 0.05); } catch (e) {}
-      setTimeout(() => { instances.delete(inst.id); recomputeDucking(); renderTransport(); renderCueRowsState(); }, t * 1000 + 120);
+    if (stopAfter) {
+      const s = inst.src;
+      s.onended = () => {
+        const cur = instances.get(inst.id);
+        if (cur && cur.src === s && !cur.paused) { instances.delete(inst.id); recomputeDucking(); renderTransport(); renderCueRowsState(); }
+      };
+      try { s.stop(now + t + 0.05); } catch (e) {}
     }
   }
-  renderTransport(); renderCueRowsState();
+  recomputeDucking(); renderTransport(); renderCueRowsState();
 }
 
 function stopAll(fade) {
+  playEpoch++; // invalida starts assíncronos em voo
   for (const t of pendingWaits.values()) t.cancel();
   pendingWaits.clear();
   if (!actx) { instances.clear(); return; }
@@ -1000,6 +1117,7 @@ function stopAll(fade) {
 }
 
 let paused = false;
+let playEpoch = 0;  // invalidado por stopAll/pânico — cancela starts assíncronos em voo
 function togglePause() {
   if (!actx) return;
   paused = !paused;
@@ -1019,17 +1137,18 @@ function go() {
   if (paused) togglePause();
   if (showStartAt == null) showStartAt = Date.now();
   const cue = cues[standbyIdx];
-  execCue(cue);
-  standbyIdx = Math.min(standbyIdx + 1, cues.length);
+  const expect = Math.min(standbyIdx + 1, cues.length); // índice do "próximo"
+  execCue(cue, expect);
+  standbyIdx = expect;
   if (cue.follow === 'after' && standbyIdx < cues.length) {
-    addWait(Math.max(0.001, cue.followDelay || 0.001), go);
+    addWait(Math.max(0.001, cue.followDelay || 0.001), () => { if (standbyIdx === expect) go(); });
   }
   // follow === 'end' é disparado pelo onended do próprio áudio (precisão de amostra)
   renderAll();
 }
 
-function execCue(cue) {
-  if (cue.type === 'audio') playCue(cue, { armFollow: cue.follow === 'end' });
+function execCue(cue, followIdx) {
+  if (cue.type === 'audio') playCue(cue, { armFollow: cue.follow === 'end', followIdx: followIdx });
   else if (cue.type === 'fade') fadeInstances(cue.targetNumber || null, cue.fadeTime, cue.targetDb, !!cue.stopAfter, cue.curve || 'log');
   else if (cue.type === 'stop') {
     if (cue.stopTarget) fadeInstances(cue.stopTarget, cue.stopFade || 0.05, null, true);
@@ -1113,18 +1232,18 @@ function renderCueList() {
     if (c.type === 'audio') {
       sub = c.fileName ? esc(c.fileName) : '<span style="color:var(--danger)">sem arquivo!</span>';
       const extras = [];
-      if (c.rate && c.rate !== 1) extras.push((c.rate * 100).toFixed(0) + '%');
-      if (c.duckDb) extras.push('duck −' + c.duckDb + 'dB');
+      if (c.rate && c.rate !== 1) extras.push(esc((c.rate * 100).toFixed(0)) + '%');
+      if (c.duckDb) extras.push('duck −' + esc(c.duckDb) + 'dB');
       if (c.bassDb || c.trebleDb) extras.push('EQ');
       if (extras.length) sub += ' <span style="color:var(--warn)">· ' + extras.join(' · ') + '</span>';
     }
-    if (c.type === 'fade') sub = (c.targetNumber ? 'cue ' + esc(c.targetNumber) : 'todos') + ' → ' + (c.stopAfter ? 'parar' : (c.targetDb + ' dB')) + ' em ' + c.fadeTime + 's';
-    if (c.type === 'stop') sub = (c.stopTarget ? 'cue ' + esc(c.stopTarget) : 'todos') + (c.stopFade ? ' (fade ' + c.stopFade + 's)' : '');
+    if (c.type === 'fade') sub = (c.targetNumber ? 'cue ' + esc(c.targetNumber) : 'todos') + ' → ' + (c.stopAfter ? 'parar' : (esc(c.targetDb) + ' dB')) + ' em ' + esc(c.fadeTime) + 's';
+    if (c.type === 'stop') sub = (c.stopTarget ? 'cue ' + esc(c.stopTarget) : 'todos') + (c.stopFade ? ' (fade ' + esc(c.stopFade) + 's)' : '');
     const dur = cueDuration(c);
     tr.innerHTML =
       '<td class="cueNo">' + esc(c.number) + '</td>' +
       '<td class="cueTy">' + TYPE_ICON[c.type] + '</td>' +
-      '<td><span class="cueNm">' + (c.color ? '<span class="colorDot" style="background:' + esc(c.color) + '"></span>' : '') + esc(c.name || '(sem nome)') + '</span>' +
+      '<td><span class="cueNm">' + (safeColor(c.color) ? '<span class="colorDot" style="background:' + safeColor(c.color) + '"></span>' : '') + esc(c.name || '(sem nome)') + '</span>' +
         (sub ? '<div class="cueSub">' + sub + '</div>' : '') + '<div class="prog"><i></i></div></td>' +
       '<td class="cueWait">' + (c.preWait ? fmtT(c.preWait) : '') + '</td>' +
       '<td class="cueDur">' + (c.type === 'audio' ? (c.loop ? '∞ loop' : fmtT(dur)) : '') + '</td>' +
@@ -1186,7 +1305,7 @@ function renderTransport() {
     chip.querySelector('.pp').onclick = () => { inst.paused ? resumeInst(inst) : pauseInst(inst); };
     chip.querySelector('.st').onclick = () => {
       if (inst.paused) { instances.delete(inst.id); renderTransport(); renderCueRowsState(); }
-      else fadeInstances(inst.cue.number, 0.5, null, true);
+      else fadeInstances(inst.cue.number, 0.5, null, true, null, inst.id);
     };
     pn.appendChild(chip);
   }
@@ -1325,7 +1444,7 @@ function renderInspector() {
       // ajustes ao vivo em cues tocando
       for (const inst of instances.values()) if (inst.cue.id === c.id && actx && !inst.paused) {
         const now = actx.currentTime;
-        if (f === 'volumeDb') { try { inst.gain.gain.cancelScheduledValues(now); } catch (e) {} inst.gain.gain.setValueAtTime(dbToGain(v || 0), now); }
+        if (f === 'volumeDb') { try { inst.gain.gain.cancelScheduledValues(now); } catch (e) {} inst.gain.gain.setValueAtTime(dbToGain(v || 0), now); rescheduleFadeOut(inst, dbToGain(v || 0)); }
         if (f === 'ratePct') { inst.playedBuf = instPos(inst); inst.startT = now; inst.rate = c.rate; inst.src.playbackRate.setValueAtTime(c.rate, now); }
         if (f === 'bassDb' && inst.low) inst.low.gain.setValueAtTime(v || 0, now);
         if (f === 'trebleDb' && inst.high) inst.high.gain.setValueAtTime(v || 0, now);
@@ -1347,15 +1466,17 @@ function renderInspector() {
 }
 
 // ---- waveform + recorte por arraste ----
-let wavePeaks = null;
+let wavePeaks = null, waveGen = 0;
 async function drawWaveform(cue) {
   const cv = $('waveCv'); if (!cv) return;
+  const gen = ++waveGen;
   const g = cv.getContext('2d');
   g.fillStyle = '#05070b'; g.fillRect(0, 0, cv.width, cv.height);
   wavePeaks = null;
   if (!cue.fileKey) return;
   g.fillStyle = '#7d8794'; g.font = '12px sans-serif'; g.fillText('carregando forma de onda…', 10, 20);
   let buf; try { buf = await getBuffer(cue.fileKey); } catch (e) { return; }
+  if (gen !== waveGen || cue.id !== selectedId) return; // trocou de cue durante o carregamento
   const W = cv.width, ch = buf.getChannelData(0), step = Math.ceil(ch.length / W);
   const peaks = [];
   for (let i = 0; i < W; i++) {
@@ -1433,7 +1554,8 @@ function attachWaveDrag(cue) {
     if (t > sT && t < eT) {
       ensureCtx();
       fadeInstances(cue.number, 0.05, null, true);
-      setTimeout(() => startAudioInstance(cue, { offset: t - sT }), 90);
+      const ep = playEpoch;
+      setTimeout(() => { if (ep === playEpoch) startAudioInstance(cue, { offset: t - sT }); }, 90);
       toast('▶ Ouvindo a partir de ' + fmtT(t));
     }
   };
@@ -1467,8 +1589,8 @@ function drawMeter() {
 $('masterFader').oninput = () => {
   const db = parseFloat($('masterFader').value);
   $('masterDb').textContent = db.toFixed(1) + ' dB';
-  if (show) { show.data.masterDb = db; markDirty(); }
-  if (masterGain) masterGain.gain.setTargetAtTime(dbToGain(db), actx.currentTime, 0.02);
+  if (show) { pushUndoTagged('masterDb'); show.data.masterDb = db; markDirty(); }
+  if (masterGain && actx) masterGain.gain.setTargetAtTime(dbToGain(db), actx.currentTime, 0.02);
 };
 
 // ---- saída de áudio (placa/interface) ----
@@ -1511,16 +1633,20 @@ function renderFileList(container) {
     el.innerHTML = '<span>🎵</span><span class="fn" title="' + esc(f.name) + '">' + esc(f.name) + '</span>' +
       '<span style="color:var(--tx3)">' + (f.duration ? fmtT(f.duration) : '') + '</span><button class="rm" title="Remover da biblioteca" aria-label="Remover arquivo">🗑</button>';
     el.querySelector('.rm').onclick = async () => {
-      if (!confirm('Remover "' + f.name + '" da biblioteca?')) return;
+      if (!confirm('Remover "' + f.name + '" da biblioteca deste espetáculo?')) return;
+      // remove só a referência neste show (reversível por enquanto)
       pushUndo();
-      // só apaga da nuvem se o arquivo foi enviado por ESTE espetáculo
-      // (espetáculos duplicados compartilham os áudios do original)
-      if (f.key.includes('/' + show.id + '/')) {
-        try { await sb.storage.from(BUCKET).remove([f.key]); } catch (e) {}
-        idbDel(f.key);
-      }
       show.data.files = show.data.files.filter(x => x.key !== f.key);
-      markDirty(); renderInspector();
+      show.data.cues.forEach(c => { if (c.fileKey === f.key) { c.fileKey = ''; } });
+      markDirty(); renderInspector(); renderCueList();
+      // apaga da nuvem só se NENHUM outro espetáculo do usuário ainda referencia a chave
+      if (f.key.startsWith(user.id + '/')) {
+        try {
+          const { data: others } = await sb.from('stagecue_shows').select('data').neq('id', show.id);
+          const stillUsed = (others || []).some(row => (row.data && row.data.files || []).some(x => x.key === f.key));
+          if (!stillUsed) { try { await sb.storage.from(BUCKET).remove([f.key]); } catch (e) {} idbDel(f.key); }
+        } catch (e) { /* offline: mantém o arquivo na nuvem (seguro) */ }
+      }
     };
     container.appendChild(el);
   });
@@ -1653,10 +1779,10 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && gotoBuf) { e.preventDefault(); gotoBuf = ''; renderGotoBox(); return; }
   if (e.code === 'Space') { e.preventDefault(); gotoBuf = ''; renderGotoBox(); go(); }
   else if (e.key === 'Escape') { e.preventDefault(); panic(); }
-  else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); fadeAllOut(); }
+  else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); gotoBuf = ''; renderGotoBox(); fadeAllOut(); }
   else if (e.key === 'ArrowDown') { e.preventDefault(); standbyIdx = Math.min(standbyIdx + 1, cueList().length - 1); renderAll(); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); standbyIdx = Math.max(standbyIdx - 1, 0); renderAll(); }
-  else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePause(); }
+  else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); gotoBuf = ''; renderGotoBox(); togglePause(); }
 });
 
 // buffer do "ir para cue"
@@ -1676,10 +1802,13 @@ $('fontMinus').onclick = () => { lsSet('stagecue_listfs', Math.max(11, (lsGet('s
 $('fontPlus').onclick = () => { lsSet('stagecue_listfs', Math.min(24, (lsGet('stagecue_listfs') || 14) + 1)); applyFontScale(); };
 applyFontScale();
 
-// evita fechar/atualizar sem querer durante o espetáculo
+// evita fechar/atualizar sem querer durante o espetáculo ou com edição pendente
 window.addEventListener('beforeunload', e => {
-  if (instances.size > 0) { e.preventDefault(); e.returnValue = ''; }
+  if (instances.size > 0 || saveTimer) { e.preventDefault(); e.returnValue = ''; }
 });
+// tentativa final de sincronizar a última edição ao esconder a aba
+window.addEventListener('pagehide', () => { if (saveTimer) flushSave(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && saveTimer) flushSave(); });
 
 let toastT = null;
 function toast(msg, kind) {

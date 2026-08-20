@@ -61,6 +61,8 @@ await page.addInitScript(() => {
   window.confirm = () => true;
 });
 
+// servir o supabase.js local (o app agora referencia ./supabase.js)
+await page.route("http://localhost:8931/supabase.js", r => r.fulfill({ contentType: "application/javascript", body: readFileSync(UMD) }));
 // mock das fontes (sem rede no ambiente de teste)
 await page.route("**fonts.googleapis.com/**", r => r.fulfill({ contentType: "text/css", body: "" }));
 await page.route("**fonts.gstatic.com/**", r => r.fulfill({ status: 404, body: "" }));
@@ -183,6 +185,34 @@ await page.keyboard.press("Escape"); // pânico
 await page.waitForTimeout(350);
 check("PÂNICO (Esc) para tudo imediatamente", await page.locator(".playChip").count() === 0);
 
+// ---------- REGRESSÃO: pânico durante FADE geral não deixa cue fantasma ----------
+await page.click("#testBtn"); // toca cue 1 (que tem fadeIn/fadeOut)
+await page.waitForTimeout(400);
+await page.click("#fadeBtn");         // fade geral 3s começa
+await page.waitForTimeout(500);
+await page.keyboard.press("Escape");  // pânico no meio do fade
+await page.waitForTimeout(300);
+check("pânico durante fade zera tudo (sem fantasma)", await page.locator(".playChip").count() === 0);
+const ghost = await page.evaluate(() => ({ inst: instances.size, pend: pendingWaits.size }));
+check("nenhuma instância órfã após pânico no fade", ghost.inst === 0 && ghost.pend === 0);
+
+// ---------- REGRESSÃO: retomar cue durante fade-out não estoura volume ----------
+// cue 1 tem fadeOut=0.4 e dura 0.5s; pausar perto do fim e retomar mantém o nível baixo
+await page.click("tr.cue >> nth=0");
+await page.waitForTimeout(300);
+await page.click("#loopChk"); // vira loop para poder pausar sem acabar
+await page.waitForTimeout(150);
+await page.click("#testBtn");
+await page.waitForTimeout(400);
+await page.click(".playChip .pp"); // pausa
+await page.waitForTimeout(200);
+const gPaused = await page.evaluate(() => { for (const i of instances.values()) return i.pausedGain; return null; });
+check("pausa captura o ganho vigente (pausedGain definido)", gPaused != null);
+await page.keyboard.press("Escape");
+await page.waitForTimeout(300);
+await page.click("#loopChk"); // desfaz loop
+await page.waitForTimeout(150);
+
 // ---------- 8b. pausa/retomada por cue ----------
 await page.click("#testBtn"); // cue 1 ainda está em loop
 await page.waitForTimeout(500);
@@ -279,6 +309,11 @@ check("checklist fecha", !(await page.locator("#preshowModal").isVisible()));
 check("manifest PWA declarado na página", await page.evaluate(() => !!document.querySelector('link[rel="manifest"]')));
 
 // ---------- 12. recuperação de sessão após recarregar ----------
+// entra em Operação e avança o standby (op-state só é gravado durante a operação)
+await page.click("#modeBtn");
+await page.waitForTimeout(150);
+await page.keyboard.press("ArrowDown");
+await page.waitForTimeout(200);
 await page.reload();
 await page.waitForSelector("#showsScreen:not(.hidden)", { timeout: 8000 });
 await page.waitForTimeout(400);

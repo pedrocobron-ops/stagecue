@@ -1,6 +1,6 @@
 // Gera dist/index.html a partir do app.html, injetando URL e chave pública do Supabase.
 // (A chave "publishable" é pública por design — a segurança vem do Auth + RLS.)
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
@@ -15,6 +15,7 @@ const html = readFileSync(join(root, "supabase/functions/stagecue/app.html"), "u
 
 mkdirSync(join(root, "dist"), { recursive: true });
 writeFileSync(join(root, "dist/index.html"), html);
+copyFileSync(join(root, "vendor/supabase.js"), join(root, "dist/supabase.js"));
 
 // Service worker: rede primeiro, cache como reserva — o app abre mesmo sem internet.
 // A versão do cache muda junto com o conteúdo do app.
@@ -31,7 +32,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const u = new URL(e.request.url);
-  const cacheable = u.origin === location.origin || u.hostname === 'cdn.jsdelivr.net';
+  const cacheable = u.origin === location.origin;
   if (!cacheable) return;
   e.respondWith(caches.open(CACHE).then(async c => {
     try {
