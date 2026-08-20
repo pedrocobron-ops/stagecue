@@ -1,5 +1,5 @@
 // GERADO por scripts/build.mjs
-const CACHE = 'stagecue-1sy9y6x';
+const CACHE = 'stagecue-yn80my';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
@@ -9,7 +9,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const u = new URL(e.request.url);
-  const cacheable = u.origin === location.origin || u.hostname === 'cdn.jsdelivr.net';
+  const cacheable = u.origin === location.origin;
   if (!cacheable) return;
   e.respondWith(caches.open(CACHE).then(async c => {
     try {
