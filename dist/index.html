@@ -47,7 +47,7 @@
   /* ---------- SHOWS ---------- */
   #showsScreen{align-items:center;padding-top:8vh}
   .showsCard{width:560px;max-width:94vw}
-  .showsHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  .showsHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:8px;flex-wrap:wrap}
   .showItem{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:10px;cursor:pointer}
   .showItem:hover{border-color:var(--accent)}
   .showItem .nm{font-weight:700;font-size:16px;flex:1}
@@ -56,17 +56,18 @@
 
   /* ---------- OPERAÇÃO ---------- */
   #opScreen{display:flex;flex-direction:column}
-  .topbar{display:flex;align-items:center;gap:16px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--line)}
+  .topbar{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
   .topbar .logo{font-size:17px}
-  .showName{font-weight:700;color:var(--tx);max-width:26vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .showName{font-weight:700;color:var(--tx);max-width:20vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .clock{font-family:var(--mono);font-size:15px;color:var(--tx2)}
   .clock b{color:var(--tx)}
   .spacer{flex:1}
-  .masterWrap{display:flex;align-items:center;gap:10px;min-width:260px}
-  .masterWrap input[type=range]{width:140px}
+  .masterWrap{display:flex;align-items:center;gap:10px}
+  .masterWrap input[type=range]{width:120px}
   #meterCv{width:80px;height:26px;background:#000;border:1px solid var(--line);border-radius:4px}
+  #sinkSel{width:150px;font-size:12px;padding:5px 6px}
   .modeBtn.on{border-color:var(--go);color:var(--go);font-weight:700}
-  .saveState{font-size:11px;color:var(--tx3);width:70px;text-align:right}
+  .saveState{font-size:11px;color:var(--tx3);width:90px;text-align:right}
 
   .main{flex:1;display:flex;min-height:0}
   .cuePane{flex:1;display:flex;flex-direction:column;min-width:0}
@@ -82,6 +83,7 @@
   tr.cue.standby td:first-child{box-shadow:inset 4px 0 0 var(--go)}
   tr.cue.playing{background:var(--playing)}
   tr.cue.playing .cueNm{color:#86efac}
+  tr.cue.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
   .cueNo{font-family:var(--mono);color:var(--tx2);width:52px}
   .cueTy{width:34px;font-size:15px}
   .cueNm{font-weight:600}
@@ -98,12 +100,12 @@
   .inspector h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin-bottom:4px}
   .row2{display:flex;gap:10px}
   .row2>div{flex:1}
-  #waveCv{width:100%;height:84px;background:#000;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+  #waveCv{width:100%;height:84px;background:#000;border:1px solid var(--line);border-radius:8px;margin-top:8px;touch-action:none}
+  .waveHint{font-size:10.5px;color:var(--tx3);margin-top:3px}
   .fileList{margin-top:8px}
   .fileItem{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12.5px}
   .fileItem .fn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fileItem button{padding:2px 8px;font-size:12px}
-  .upProg{font-size:12px;color:var(--accent);margin-top:6px}
   .checkRow{display:flex;align-items:center;gap:8px;margin-top:10px}
   .checkRow input{width:auto}
   .checkRow label{margin:0;text-transform:none;font-size:13px;color:var(--tx)}
@@ -123,7 +125,9 @@
   .standbyInfo .nm{font-size:20px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .standbyInfo .nx{font-size:12px;color:var(--tx2);margin-top:2px}
   .playingNow{max-width:34vw;overflow:hidden}
-  .playChip{display:inline-flex;align-items:center;gap:8px;background:var(--playing);border:1px solid #14532d;color:#86efac;border-radius:8px;padding:4px 10px;margin:2px 4px 2px 0;font-size:12.5px;font-family:var(--mono)}
+  .playChip{display:inline-flex;align-items:center;gap:6px;background:var(--playing);border:1px solid #14532d;color:#86efac;border-radius:8px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12.5px;font-family:var(--mono)}
+  .playChip.paused{border-color:var(--warn);color:var(--warn);background:#2a2005}
+  .playChip button{padding:1px 6px;font-size:11px;border-radius:5px;background:transparent;border-color:#14532d;color:inherit}
   .kbdHint{color:var(--tx3);font-size:11px}
   kbd{background:var(--bg3);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:11px}
   ::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#2a313c;border-radius:6px}
@@ -161,6 +165,7 @@
       <div class="logo" style="font-size:22px">Stage<em>Cue</em></div>
       <div style="display:flex;gap:8px">
         <button id="newShowBtn" class="primary">+ Novo espetáculo</button>
+        <button id="importBtn" title="Importar backup .stagecue.json">📂 Importar</button>
         <button id="logoutBtn">Sair</button>
       </div>
     </div>
@@ -180,6 +185,7 @@
     <div class="clock">🕐 <b id="wallClock">--:--:--</b></div>
     <div class="clock" title="Cronômetro do espetáculo — inicia no primeiro GO">⏱ <b id="showTimer">00:00:00</b></div>
     <div class="spacer"></div>
+    <select id="sinkSel" title="Escolher a saída de áudio (placa/interface)"><option value="">🔈 Saída padrão</option></select>
     <div class="masterWrap">
       <span style="font-size:11px;color:var(--tx2)">MASTER</span>
       <input type="range" id="masterFader" min="-60" max="6" step="0.5" value="0">
@@ -198,6 +204,7 @@
         <button id="addStop">+ ⏹ Parar</button>
         <button id="addNote">+ 📝 Nota</button>
         <span style="flex:1"></span>
+        <button id="exportBtn" title="Baixar backup do espetáculo">💾 Exportar</button>
         <button id="dupCue">Duplicar</button>
         <button id="upCue">↑</button>
         <button id="downCue">↓</button>
@@ -230,11 +237,12 @@
       <div class="nx" id="nextName"></div>
     </div>
     <div class="playingNow" id="playingNow"></div>
-    <div class="kbdHint"><kbd>Espaço</kbd> GO &nbsp; <kbd>↑↓</kbd> standby &nbsp; <kbd>P</kbd> pausa &nbsp; <kbd>Esc</kbd> pânico</div>
+    <div class="kbdHint"><kbd>Espaço</kbd> GO &nbsp; <kbd>↑↓</kbd> standby &nbsp; <kbd>P</kbd> pausa &nbsp; <kbd>Esc</kbd> pânico &nbsp; <kbd>Ctrl+Z</kbd> desfaz</div>
   </div>
 </div>
 
 <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" multiple class="hidden">
+<input type="file" id="importInput" accept=".json,application/json" class="hidden">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -253,12 +261,60 @@ const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp
 
 // ============ ESTADO ============
 let user = null;
-let show = null;          // {id, name, data:{cues:[], files:[], masterDb}}
-let selectedId = null;    // cue selecionado (edição)
-let standbyIdx = 0;       // índice do cue em standby
+let show = null;          // {id, name, data:{cues:[], files:[], masterDb, sinkId}}
+let selectedId = null;
+let standbyIdx = 0;
 let editMode = true;
-let showStartAt = null;   // cronômetro do espetáculo
+let showStartAt = null;
 let saveTimer = null;
+
+// ============ OFFLINE: service worker + caches locais ============
+if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {} }
+
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function lsGet(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+
+// cache de áudio no IndexedDB (o show roda sem internet depois de carregado uma vez)
+let idbP = null;
+function idb() {
+  if (idbP) return idbP;
+  idbP = new Promise((res, rej) => {
+    const r = indexedDB.open('stagecue', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('audio');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return idbP;
+}
+async function idbGet(k) {
+  try { const db = await idb(); return await new Promise(res => {
+    const t = db.transaction('audio').objectStore('audio').get(k);
+    t.onsuccess = () => res(t.result || null); t.onerror = () => res(null);
+  }); } catch (e) { return null; }
+}
+async function idbSet(k, v) { try { const db = await idb(); db.transaction('audio', 'readwrite').objectStore('audio').put(v, k); } catch (e) {} }
+async function idbDel(k) { try { const db = await idb(); db.transaction('audio', 'readwrite').objectStore('audio').delete(k); } catch (e) {} }
+
+// ============ DESFAZER ============
+const undoStack = [];
+let lastUndoTag = '', lastUndoT = 0;
+function pushUndo() {
+  if (!show) return;
+  undoStack.push(JSON.stringify(show.data));
+  if (undoStack.length > 60) undoStack.shift();
+}
+function pushUndoTagged(tag) {
+  const now = Date.now();
+  if (tag !== lastUndoTag || now - lastUndoT > 1200) pushUndo();
+  lastUndoTag = tag; lastUndoT = now;
+}
+function doUndo() {
+  if (!undoStack.length || !show) return;
+  show.data = JSON.parse(undoStack.pop());
+  if (standbyIdx > show.data.cues.length) standbyIdx = show.data.cues.length;
+  selectedId = null;
+  markDirty(); renderAll(); toast('↩ Desfeito');
+}
 
 // ============ AUTENTICAÇÃO ============
 let authMode = 'login';
@@ -298,9 +354,10 @@ $('authBtn').onclick = async () => {
 };
 
 sb.auth.onAuthStateChange((_ev, session) => {
+  const wasUser = user;
   user = session ? session.user : null;
-  if (user) { showScreen('shows'); loadShows(); }
-  else showScreen('auth');
+  if (user && !wasUser) { showScreen('shows'); loadShows(); }
+  else if (!user) showScreen('auth');
 });
 $('logoutBtn').onclick = () => sb.auth.signOut();
 
@@ -312,8 +369,15 @@ function showScreen(s) {
 
 // ============ ESPETÁCULOS ============
 async function loadShows() {
-  const { data, error } = await sb.from('stagecue_shows').select('id,name,updated_at').order('updated_at', { ascending: false });
-  if (error) { toast('Erro ao carregar: ' + error.message); return; }
+  let data = null;
+  try {
+    const r = await sb.from('stagecue_shows').select('id,name,updated_at').order('updated_at', { ascending: false });
+    if (!r.error) { data = r.data; lsSet('stagecue_shows_list', data); }
+  } catch (e) {}
+  if (!data) {
+    data = lsGet('stagecue_shows_list') || [];
+    if (data.length) toast('📴 Sem internet — mostrando lista local');
+  }
   const list = $('showsList'); list.innerHTML = '';
   $('showsEmpty').classList.toggle('hidden', data.length > 0);
   data.forEach(s => {
@@ -330,7 +394,9 @@ async function loadShows() {
     el.querySelector('.del').onclick = async ev => {
       ev.stopPropagation();
       if (confirm('Excluir "' + s.name + '"? Essa ação não pode ser desfeita.')) {
-        await sb.from('stagecue_shows').delete().eq('id', s.id); loadShows();
+        await sb.from('stagecue_shows').delete().eq('id', s.id);
+        localStorage.removeItem('stagecue_show_' + s.id);
+        loadShows();
       }
     };
     el.onclick = () => openShow(s.id);
@@ -347,19 +413,47 @@ $('newShowBtn').onclick = async () => {
   openShow(data.id);
 };
 
+// importar backup
+$('importBtn').onclick = () => $('importInput').click();
+$('importInput').onchange = async () => {
+  const f = $('importInput').files[0];
+  $('importInput').value = '';
+  if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (!j || j.stagecue !== 1 || !j.data) throw new Error('Arquivo não é um backup do StageCue.');
+    const { error } = await sb.from('stagecue_shows')
+      .insert({ user_id: user.id, name: (j.name || 'Importado') + ' (importado)', data: j.data });
+    if (error) throw new Error(error.message);
+    toast('✓ Espetáculo importado'); loadShows();
+  } catch (e) { toast('⚠ ' + e.message); }
+};
+
 async function openShow(id) {
-  const { data, error } = await sb.from('stagecue_shows').select('*').eq('id', id).single();
-  if (error) { toast('Erro: ' + error.message); return; }
+  let data = null;
+  try {
+    const r = await sb.from('stagecue_shows').select('*').eq('id', id).single();
+    if (!r.error) data = r.data;
+  } catch (e) {}
+  if (!data) {
+    data = lsGet('stagecue_show_' + id);
+    if (data) toast('📴 Sem internet — abrindo cópia local');
+    else { toast('Erro ao abrir o espetáculo (sem internet e sem cópia local).'); return; }
+  }
   show = data;
   show.data = show.data || {};
   show.data.cues = show.data.cues || [];
   show.data.files = show.data.files || [];
   if (typeof show.data.masterDb !== 'number') show.data.masterDb = 0;
+  lsSet('stagecue_show_' + show.id, show);
+  undoStack.length = 0;
   selectedId = null; standbyIdx = 0; showStartAt = null;
   stopAll(0);
   buffers.clear();
   $('opShowName').textContent = show.name;
   $('masterFader').value = show.data.masterDb;
+  $('masterDb').textContent = show.data.masterDb.toFixed(1) + ' dB';
+  if (show.data.sinkId) populateSinks();
   setEditMode(true);
   showScreen('op');
   renderAll();
@@ -369,41 +463,100 @@ $('backBtn').onclick = () => { stopAll(0.1); showScreen('shows'); loadShows(); }
 
 function markDirty() {
   $('saveState').textContent = 'salvando…';
+  if (show) lsSet('stagecue_show_' + show.id, show); // cópia local imediata
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
-    const { error } = await sb.from('stagecue_shows')
-      .update({ data: show.data, updated_at: new Date().toISOString() }).eq('id', show.id);
-    $('saveState').textContent = error ? '⚠ erro' : '✓ salvo';
+    try {
+      const { error } = await sb.from('stagecue_shows')
+        .update({ data: show.data, updated_at: new Date().toISOString() }).eq('id', show.id);
+      $('saveState').textContent = error ? '💾 local' : '✓ salvo';
+    } catch (e) { $('saveState').textContent = '💾 local'; }
   }, 700);
 }
+
+// exportar backup
+$('exportBtn').onclick = () => {
+  if (!show) return;
+  const blob = new Blob([JSON.stringify({ stagecue: 1, name: show.name, data: show.data }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = show.name.replace(/[^\w\- ]+/g, '_') + '.stagecue.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('💾 Backup baixado (os áudios ficam na nuvem/cache)');
+};
 
 // ============ ÁUDIO / ENGINE ============
 let actx = null, masterGain = null, analyser = null;
 const buffers = new Map();      // fileKey -> AudioBuffer (ou Promise)
-const instances = new Map();    // instId -> {cue, src, gain, startT, offset, dur, raf}
-const pendingWaits = new Map(); // instId -> timeoutId (pré-esperas / follows)
+const instances = new Map();    // instId -> instância tocando/pausada
+const pendingWaits = new Map(); // id -> {cancel} (pré-esperas / follows no relógio de áudio)
 
 function ensureCtx() {
   if (!actx) {
-    actx = new (window.AudioContext || window.webkitAudioContext)();
+    actx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
     masterGain = actx.createGain();
     analyser = actx.createAnalyser();
     analyser.fftSize = 1024;
     masterGain.connect(analyser); analyser.connect(actx.destination);
     masterGain.gain.value = dbToGain(show ? show.data.masterDb : 0);
+    applySink();
     drawMeter();
   }
   if (actx.state === 'suspended' && !paused) actx.resume();
   return actx;
 }
 
+// timer no relógio de áudio (precisão de amostra; congela junto com a pausa geral)
+function audioTimer(sec, cb) {
+  const ctx = ensureCtx();
+  if (!ctx.createConstantSource) { const t = setTimeout(cb, sec * 1000); return { cancel: () => clearTimeout(t) }; }
+  const src = ctx.createConstantSource();
+  const g = ctx.createGain(); g.gain.value = 0;
+  src.connect(g); g.connect(ctx.destination);
+  src.onended = () => { try { g.disconnect(); } catch (e) {} cb(); };
+  src.start(); src.stop(ctx.currentTime + Math.max(0.001, sec));
+  return { cancel: () => { src.onended = null; try { src.stop(); } catch (e) {} try { g.disconnect(); } catch (e) {} } };
+}
+function addWait(sec, cb) {
+  const id = uuid();
+  const t = audioTimer(sec, () => { pendingWaits.delete(id); cb(); });
+  pendingWaits.set(id, t);
+}
+
+// curvas de fade: 'log' (suave, natural), 'linear', 'scurve'
+function rampTo(param, to, t0, dur, curve) {
+  const from = Math.max(param.value, 0.0001);
+  to = Math.max(to, 0.0001);
+  try { param.cancelScheduledValues(t0); } catch (e) {}
+  if (!dur || dur <= 0.02) { param.setValueAtTime(to, t0); return; }
+  param.setValueAtTime(from, t0);
+  scheduleRamp(param, from, to, t0, dur, curve);
+}
+function scheduleRamp(param, from, to, t0, dur, curve) {
+  curve = curve || 'log';
+  if (curve === 'linear') { param.linearRampToValueAtTime(to, t0 + dur); return; }
+  const N = 96, arr = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const x = i / (N - 1);
+    const y = curve === 'scurve' ? x * x * (3 - 2 * x) : (to < from ? 1 - Math.pow(1 - x, 2.2) : Math.pow(x, 2.2));
+    arr[i] = Math.max(from + (to - from) * y, 0.0001);
+  }
+  try { param.setValueCurveAtTime(arr, t0, dur); }
+  catch (e) { param.linearRampToValueAtTime(to, t0 + dur); }
+}
+
 async function getBuffer(fileKey) {
   if (buffers.has(fileKey)) return buffers.get(fileKey);
   const p = (async () => {
-    const { data, error } = await sb.storage.from(BUCKET).download(fileKey);
-    if (error) throw new Error('Falha ao baixar áudio: ' + error.message);
-    const ab = await data.arrayBuffer();
-    return await ensureCtx().decodeAudioData(ab);
+    let bytes = await idbGet(fileKey); // 1º: cache local (funciona sem internet)
+    if (!bytes) {
+      const { data, error } = await sb.storage.from(BUCKET).download(fileKey);
+      if (error) throw new Error('Falha ao baixar áudio: ' + error.message);
+      bytes = await data.arrayBuffer();
+      idbSet(fileKey, bytes);
+    }
+    return await ensureCtx().decodeAudioData(bytes.slice(0));
   })();
   buffers.set(fileKey, p);
   try { const b = await p; buffers.set(fileKey, b); return b; }
@@ -419,76 +572,151 @@ async function preloadAll() {
   toast(ok + '/' + keys.length + ' áudios prontos ✓');
 }
 
-function playCue(cue) {
+function playCue(cue, opts) {
   if (cue.type !== 'audio' || !cue.fileKey) return;
-  const start = () => startAudioInstance(cue);
-  if (cue.preWait > 0) {
-    const id = uuid();
-    const t = setTimeout(() => { pendingWaits.delete(id); start(); }, cue.preWait * 1000);
-    pendingWaits.set(id, t);
-  } else start();
+  opts = opts || {};
+  if (cue.preWait > 0 && !opts.resumeOf) addWait(cue.preWait, () => startAudioInstance(cue, opts));
+  else startAudioInstance(cue, opts);
 }
 
-async function startAudioInstance(cue) {
+async function startAudioInstance(cue, opts) {
+  opts = opts || {};
   let buf;
   try { buf = await getBuffer(cue.fileKey); }
   catch (e) { toast('⚠ ' + e.message); return; }
   const ctx = ensureCtx();
+  const rate = Math.min(4, Math.max(0.25, cue.rate || 1));
+  const startAt = Math.max(0, cue.startAt || 0);
+  const endAt = (cue.endAt && cue.endAt > startAt) ? Math.min(cue.endAt, buf.duration) : buf.duration;
+  const regionDur = endAt - startAt;                     // em segundos de buffer
+  const resume = opts.resumeOf || null;
+  const playedBuf = resume ? resume.pausedPos : 0;       // já tocado (segundos de buffer)
+  if (playedBuf >= regionDur && !cue.loop) { if (resume) instances.delete(resume.id); return; }
+
   const src = ctx.createBufferSource();
   src.buffer = buf;
   src.loop = !!cue.loop;
+  src.playbackRate.value = rate;
+
+  // cadeia: src → [grave] → [agudo] → gain(volume+fades) → duck → pan → master
+  let head = src;
+  let low = null, high = null;
+  if (cue.bassDb) {
+    low = ctx.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 200; low.gain.value = cue.bassDb;
+    head.connect(low); head = low;
+  }
+  if (cue.trebleDb) {
+    high = ctx.createBiquadFilter(); high.type = 'highshelf'; high.frequency.value = 3000; high.gain.value = cue.trebleDb;
+    head.connect(high); head = high;
+  }
   const gain = ctx.createGain();
-  const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-  if (pan) { pan.pan.value = cue.pan || 0; src.connect(gain); gain.connect(pan); pan.connect(masterGain); }
-  else { src.connect(gain); gain.connect(masterGain); }
+  const duck = ctx.createGain();
+  head.connect(gain); gain.connect(duck);
+  let out = duck;
+  if (ctx.createStereoPanner) { const pan = ctx.createStereoPanner(); pan.pan.value = cue.pan || 0; duck.connect(pan); out = pan; }
+  out.connect(masterGain);
 
   const vol = dbToGain(cue.volumeDb || 0);
   const now = ctx.currentTime;
+  const curve = cue.fadeCurve || 'log';
   const fadeIn = Math.max(0, cue.fadeIn || 0);
-  if (fadeIn > 0) { gain.gain.setValueAtTime(0.0001, now); gain.gain.linearRampToValueAtTime(vol, now + fadeIn); }
-  else gain.gain.setValueAtTime(vol, now);
+  if (fadeIn > 0 && !resume) {
+    gain.gain.setValueAtTime(0.0001, now);
+    scheduleRamp(gain.gain, 0.0001, Math.max(vol, 0.0001), now, fadeIn, curve);
+  } else gain.gain.setValueAtTime(vol, now);
 
-  const startAt = Math.max(0, cue.startAt || 0);
-  const endAt = (cue.endAt && cue.endAt > startAt) ? Math.min(cue.endAt, buf.duration) : buf.duration;
-  const dur = endAt - startAt;
-  if (cue.loop) { src.loopStart = startAt; src.loopEnd = endAt; src.start(now, startAt); }
-  else src.start(now, startAt, dur);
+  const remainBuf = cue.loop ? regionDur : (regionDur - playedBuf);
+  const remainWall = remainBuf / rate;
+  if (cue.loop) { src.loopStart = startAt; src.loopEnd = endAt; src.start(now, startAt + (playedBuf % regionDur)); }
+  else src.start(now, startAt + playedBuf, remainBuf);
 
   // fade-out programado no fim (se não for loop)
   const fadeOut = Math.max(0, cue.fadeOut || 0);
-  if (!cue.loop && fadeOut > 0 && fadeOut < dur) {
-    gain.gain.setValueAtTime(vol, now + dur - fadeOut);
-    gain.gain.linearRampToValueAtTime(0.0001, now + dur);
+  if (!cue.loop && fadeOut > 0 && fadeOut < remainWall) {
+    gain.gain.setValueAtTime(Math.max(vol, 0.0001), now + remainWall - fadeOut);
+    scheduleRamp(gain.gain, Math.max(vol, 0.0001), 0.0001, now + remainWall - fadeOut, fadeOut, curve);
   }
 
-  const instId = uuid();
-  const inst = { id: instId, cue, src, gain, startT: now, offset: startAt, dur, loop: !!cue.loop };
-  instances.set(instId, inst);
-  src.onended = () => { instances.delete(instId); renderTransport(); renderCueRowsState(); };
+  const inst = resume || { id: uuid(), cue };
+  Object.assign(inst, {
+    src, gain, duck, low, high,
+    startT: now, playedBuf, regionDur, rate, loop: !!cue.loop,
+    paused: false,
+    armFollow: resume ? inst.armFollow : !!opts.armFollow,
+  });
+  instances.set(inst.id, inst);
+  src.onended = () => {
+    if (inst.paused) return;
+    instances.delete(inst.id);
+    recomputeDucking(); renderTransport(); renderCueRowsState();
+    if (inst.armFollow && cue.follow === 'end') { inst.armFollow = false; go(); }
+  };
+  recomputeDucking(); renderTransport(); renderCueRowsState();
+}
+
+// ducking: cue com duckDb abaixa os outros enquanto toca
+function recomputeDucking() {
+  if (!actx) return;
+  const now = actx.currentTime;
+  for (const inst of instances.values()) {
+    let duckDb = 0;
+    for (const other of instances.values()) {
+      if (other === inst || other.paused) continue;
+      const d = other.cue.duckDb || 0;
+      if (d > duckDb) duckDb = d;
+    }
+    const target = duckDb ? dbToGain(-duckDb) : 1;
+    const g = inst.duck.gain;
+    try { g.cancelScheduledValues(now); } catch (e) {}
+    g.setValueAtTime(Math.max(g.value, 0.0001), now);
+    g.linearRampToValueAtTime(Math.max(target, 0.0001), now + 0.45);
+  }
+}
+
+function instPos(inst) { // posição em segundos de buffer dentro do recorte
+  const consumed = inst.paused ? 0 : (actx.currentTime - inst.startT) * inst.rate;
+  let pos = inst.playedBuf + consumed;
+  if (inst.loop) pos = pos % inst.regionDur;
+  return Math.min(pos, inst.regionDur);
+}
+
+// pausa/retomada por cue
+function pauseInst(inst) {
+  if (inst.paused) return;
+  inst.pausedPos = instPos(inst);
+  inst.paused = true;
+  inst.src.onended = null;
+  try { inst.src.stop(); } catch (e) {}
+  recomputeDucking(); renderTransport(); renderCueRowsState();
+}
+function resumeInst(inst) {
+  if (!inst.paused) return;
+  startAudioInstance(inst.cue, { resumeOf: inst });
+}
+
+function fadeInstances(targetNumber, fadeTime, targetDb, stopAfter, curve) {
+  if (!actx) return;
+  const t = Math.max(0.05, fadeTime || 0.05);
+  const now = actx.currentTime;
+  for (const inst of instances.values()) {
+    if (targetNumber && String(inst.cue.number) !== String(targetNumber)) continue;
+    if (stopAfter) inst.armFollow = false; // parada manual não dispara follow
+    if (inst.paused) { if (stopAfter) instances.delete(inst.id); continue; }
+    const target = stopAfter ? 0.0001 : dbToGain(targetDb == null ? -60 : targetDb);
+    rampTo(inst.gain.gain, target, now, t, curve || 'log');
+    if (stopAfter) { inst.src.onended = null; try { inst.src.stop(now + t + 0.05); } catch (e) {}
+      setTimeout(() => { instances.delete(inst.id); recomputeDucking(); renderTransport(); renderCueRowsState(); }, t * 1000 + 120);
+    }
+  }
   renderTransport(); renderCueRowsState();
 }
 
-function fadeInstances(targetNumber, fadeTime, targetDb, stopAfter) {
-  const t = Math.max(0.05, fadeTime || 0.05);
-  for (const inst of instances.values()) {
-    if (targetNumber && String(inst.cue.number) !== String(targetNumber)) continue;
-    const g = inst.gain.gain, now = actx.currentTime;
-    g.cancelScheduledValues(now);
-    g.setValueAtTime(Math.max(g.value, 0.0001), now);
-    const target = stopAfter ? 0.0001 : dbToGain(targetDb == null ? -60 : targetDb);
-    g.linearRampToValueAtTime(Math.max(target, 0.0001), now + t);
-    if (stopAfter) { try { inst.src.stop(now + t + 0.05); } catch (e) {} }
-  }
-}
-
 function stopAll(fade) {
-  for (const t of pendingWaits.values()) clearTimeout(t);
+  for (const t of pendingWaits.values()) t.cancel();
   pendingWaits.clear();
   if (!actx) { instances.clear(); return; }
   const f = Math.max(0.02, fade == null ? 1 : fade);
   fadeInstances(null, f, null, true);
-  setTimeout(() => { instances.clear(); renderTransport(); renderCueRowsState(); }, f * 1000 + 120);
-  renderTransport();
 }
 
 let paused = false;
@@ -502,7 +730,6 @@ function togglePause() {
 
 // ============ GO ============
 function cueList() { return show.data.cues; }
-function cueByNumber(n) { return cueList().find(c => String(c.number) === String(n)); }
 
 function go() {
   const cues = cueList();
@@ -513,31 +740,20 @@ function go() {
   const cue = cues[standbyIdx];
   execCue(cue);
   standbyIdx = Math.min(standbyIdx + 1, cues.length);
-  // auto-follow: dispara o próximo automaticamente
   if (cue.follow === 'after' && standbyIdx < cues.length) {
-    const d = Math.max(0, cue.followDelay || 0);
-    const id = uuid();
-    const t = setTimeout(() => { pendingWaits.delete(id); go(); }, d * 1000);
-    pendingWaits.set(id, t);
-  } else if (cue.follow === 'end' && cue.type === 'audio' && standbyIdx < cues.length) {
-    const d = (cue.preWait || 0) + cueDuration(cue);
-    if (isFinite(d)) {
-      const id = uuid();
-      const t = setTimeout(() => { pendingWaits.delete(id); go(); }, d * 1000);
-      pendingWaits.set(id, t);
-    }
+    addWait(Math.max(0.001, cue.followDelay || 0.001), go);
   }
+  // follow === 'end' é disparado pelo onended do próprio áudio (precisão de amostra)
   renderAll();
 }
 
 function execCue(cue) {
-  if (cue.type === 'audio') playCue(cue);
-  else if (cue.type === 'fade') fadeInstances(cue.targetNumber || null, cue.fadeTime, cue.targetDb, !!cue.stopAfter);
+  if (cue.type === 'audio') playCue(cue, { armFollow: cue.follow === 'end' });
+  else if (cue.type === 'fade') fadeInstances(cue.targetNumber || null, cue.fadeTime, cue.targetDb, !!cue.stopAfter, cue.curve || 'log');
   else if (cue.type === 'stop') {
     if (cue.stopTarget) fadeInstances(cue.stopTarget, cue.stopFade || 0.05, null, true);
     else stopAll(cue.stopFade == null ? 1 : cue.stopFade);
   }
-  // 'note': só avança
 }
 
 function cueDuration(cue) {
@@ -546,17 +762,18 @@ function cueDuration(cue) {
   const total = f && f.duration ? f.duration : null;
   if (total == null) return Infinity;
   const s = cue.startAt || 0, e = (cue.endAt && cue.endAt > s) ? cue.endAt : total;
-  return cue.loop ? Infinity : (e - s);
+  return cue.loop ? Infinity : ((e - s) / (cue.rate || 1));
 }
 
 // ============ CUES: CRUD ============
 function newCue(type) {
+  pushUndo();
   const cues = cueList();
   const nums = cues.map(c => parseFloat(c.number)).filter(n => isFinite(n));
   const nextNo = nums.length ? Math.floor(Math.max(...nums)) + 1 : 1;
   const base = { id: uuid(), type, number: String(nextNo), name: '', color: '', preWait: 0, follow: 'none', followDelay: 0, notes: '' };
-  if (type === 'audio') Object.assign(base, { fileKey: '', fileName: '', volumeDb: 0, pan: 0, loop: false, fadeIn: 0, fadeOut: 0, startAt: 0, endAt: null, name: 'Novo áudio' });
-  if (type === 'fade') Object.assign(base, { targetNumber: '', fadeTime: 3, targetDb: -60, stopAfter: true, name: 'Fade' });
+  if (type === 'audio') Object.assign(base, { fileKey: '', fileName: '', volumeDb: 0, pan: 0, loop: false, fadeIn: 0, fadeOut: 0, startAt: 0, endAt: null, rate: 1, bassDb: 0, trebleDb: 0, duckDb: 0, fadeCurve: 'log', name: 'Novo áudio' });
+  if (type === 'fade') Object.assign(base, { targetNumber: '', fadeTime: 3, targetDb: -60, stopAfter: true, curve: 'log', name: 'Fade' });
   if (type === 'stop') Object.assign(base, { stopTarget: '', stopFade: 1, name: 'Parar tudo' });
   if (type === 'note') base.name = 'Deixa / anotação';
   const selIdx = cues.findIndex(c => c.id === selectedId);
@@ -572,6 +789,7 @@ $('addNote').onclick = () => newCue('note');
 $('dupCue').onclick = () => {
   const i = cueList().findIndex(c => c.id === selectedId);
   if (i < 0) return;
+  pushUndo();
   const cp = JSON.parse(JSON.stringify(cueList()[i]));
   cp.id = uuid(); cp.name += ' (cópia)';
   cueList().splice(i + 1, 0, cp);
@@ -580,6 +798,7 @@ $('dupCue').onclick = () => {
 $('delCue').onclick = () => {
   const i = cueList().findIndex(c => c.id === selectedId);
   if (i < 0) return;
+  pushUndo();
   cueList().splice(i, 1);
   selectedId = null;
   if (standbyIdx > cueList().length - 1) standbyIdx = Math.max(0, cueList().length - 1);
@@ -592,12 +811,14 @@ function moveCue(d) {
   const i = cues.findIndex(c => c.id === selectedId);
   const j = i + d;
   if (i < 0 || j < 0 || j >= cues.length) return;
+  pushUndo();
   [cues[i], cues[j]] = [cues[j], cues[i]];
   markDirty(); renderAll();
 }
 
 // ============ RENDER ============
 const TYPE_ICON = { audio: '🔊', fade: '📉', stop: '⏹', note: '📝' };
+let dragIdx = null;
 
 function renderAll() { renderCueList(); renderInspector(); renderTransport(); }
 
@@ -608,7 +829,14 @@ function renderCueList() {
     tr.className = 'cue' + (c.id === selectedId ? ' selected' : '') + (i === standbyIdx ? ' standby' : '');
     tr.dataset.id = c.id;
     let sub = '';
-    if (c.type === 'audio') sub = c.fileName ? esc(c.fileName) : '<span style="color:var(--danger)">sem arquivo!</span>';
+    if (c.type === 'audio') {
+      sub = c.fileName ? esc(c.fileName) : '<span style="color:var(--danger)">sem arquivo!</span>';
+      const extras = [];
+      if (c.rate && c.rate !== 1) extras.push((c.rate * 100).toFixed(0) + '%');
+      if (c.duckDb) extras.push('duck −' + c.duckDb + 'dB');
+      if (c.bassDb || c.trebleDb) extras.push('EQ');
+      if (extras.length) sub += ' <span style="color:var(--warn)">· ' + extras.join(' · ') + '</span>';
+    }
     if (c.type === 'fade') sub = (c.targetNumber ? 'cue ' + esc(c.targetNumber) : 'todos') + ' → ' + (c.stopAfter ? 'parar' : (c.targetDb + ' dB')) + ' em ' + c.fadeTime + 's';
     if (c.type === 'stop') sub = (c.stopTarget ? 'cue ' + esc(c.stopTarget) : 'todos') + (c.stopFade ? ' (fade ' + c.stopFade + 's)' : '');
     const dur = cueDuration(c);
@@ -622,13 +850,28 @@ function renderCueList() {
       '<td class="cueFollow">' + (c.follow !== 'none' ? '⤵' : '') + '</td>';
     tr.onclick = () => { selectedId = c.id; if (editMode) renderAll(); else { standbyIdx = i; renderAll(); } };
     tr.ondblclick = () => { standbyIdx = i; renderAll(); };
+    // arrastar para reordenar (modo edição)
+    tr.draggable = editMode;
+    tr.addEventListener('dragstart', () => { dragIdx = i; });
+    tr.addEventListener('dragover', e => { e.preventDefault(); tr.classList.add('dragover'); });
+    tr.addEventListener('dragleave', () => tr.classList.remove('dragover'));
+    tr.addEventListener('drop', e => {
+      e.preventDefault(); tr.classList.remove('dragover');
+      if (dragIdx == null || dragIdx === i) { dragIdx = null; return; }
+      pushUndo();
+      const cues = cueList();
+      const [mv] = cues.splice(dragIdx, 1);
+      cues.splice(i, 0, mv);
+      dragIdx = null;
+      markDirty(); renderAll();
+    });
     tb.appendChild(tr);
   });
   renderCueRowsState();
 }
 
 function renderCueRowsState() {
-  const playingIds = new Set([...instances.values()].map(x => x.cue.id));
+  const playingIds = new Set([...instances.values()].filter(x => !x.paused).map(x => x.cue.id));
   document.querySelectorAll('tr.cue').forEach(tr => {
     tr.classList.toggle('playing', playingIds.has(tr.dataset.id));
   });
@@ -643,16 +886,21 @@ function renderTransport() {
   const pn = $('playingNow'); pn.innerHTML = '';
   for (const inst of instances.values()) {
     const chip = document.createElement('span');
-    chip.className = 'playChip'; chip.dataset.inst = inst.id;
-    chip.innerHTML = '▶ ' + esc(inst.cue.number) + ' <span class="t"></span>';
-    chip.title = 'Clique para parar este cue (fade 0,5s)';
-    chip.style.cursor = 'pointer';
-    chip.onclick = () => fadeInstances(inst.cue.number, 0.5, null, true);
+    chip.className = 'playChip' + (inst.paused ? ' paused' : '');
+    chip.dataset.inst = inst.id;
+    chip.innerHTML = (inst.paused ? '⏸ ' : '▶ ') + esc(inst.cue.number) + ' <span class="t"></span>' +
+      '<button class="pp" title="Pausar/retomar este cue">' + (inst.paused ? '▶' : '⏸') + '</button>' +
+      '<button class="st" title="Parar este cue (fade 0,5s)">⏹</button>';
+    chip.querySelector('.pp').onclick = () => { inst.paused ? resumeInst(inst) : pauseInst(inst); };
+    chip.querySelector('.st').onclick = () => {
+      if (inst.paused) { instances.delete(inst.id); renderTransport(); renderCueRowsState(); }
+      else fadeInstances(inst.cue.number, 0.5, null, true);
+    };
     pn.appendChild(chip);
   }
 }
 
-// progress + relógios + playhead
+// relógios + progresso + playhead
 setInterval(() => {
   $('wallClock').textContent = new Date().toLocaleTimeString('pt-BR');
   if (showStartAt != null) {
@@ -664,13 +912,13 @@ setInterval(() => {
 function tick() {
   if (actx && instances.size) {
     for (const inst of instances.values()) {
-      const el = Math.max(0, actx.currentTime - inst.startT);
-      const pos = inst.loop ? (el % inst.dur) : Math.min(el, inst.dur);
+      const pos = inst.paused ? inst.pausedPos : instPos(inst);
+      const frac = inst.regionDur ? pos / inst.regionDur : 0;
       const tr = document.querySelector('tr.cue[data-id="' + inst.cue.id + '"] .prog i');
-      if (tr) tr.style.width = (pos / inst.dur * 100) + '%';
+      if (tr) tr.style.width = (frac * 100) + '%';
       const chip = document.querySelector('.playChip[data-inst="' + inst.id + '"] .t');
-      if (chip) chip.textContent = fmtT(pos) + (inst.loop ? ' ∞' : ' / ' + fmtT(inst.dur));
-      if (selectedId === inst.cue.id) drawWavePlayhead(pos / inst.dur);
+      if (chip) chip.textContent = fmtT(pos / inst.rate) + (inst.loop ? ' ∞' : ' / ' + fmtT(inst.regionDur / inst.rate));
+      if (selectedId === inst.cue.id) drawWavePlayhead(frac);
     }
   }
   requestAnimationFrame(tick);
@@ -685,6 +933,12 @@ function renderInspector() {
   renderFileList($('fileList2'));
   if (!c) return;
   const el = $('inspCue');
+  const curveSel = (f, val) =>
+    '<select data-f="' + f + '">' +
+    '<option value="log"' + (val === 'log' || !val ? ' selected' : '') + '>Suave (natural)</option>' +
+    '<option value="linear"' + (val === 'linear' ? ' selected' : '') + '>Linear</option>' +
+    '<option value="scurve"' + (val === 'scurve' ? ' selected' : '') + '>Curva S</option>' +
+    '</select>';
   let html = '<h3>' + TYPE_ICON[c.type] + ' Cue ' + esc(c.number) + '</h3>';
   html += '<div class="row2"><div><label>Número</label><input data-f="number" value="' + esc(c.number) + '"></div>' +
           '<div><label>Cor</label><select data-f="color"><option value="">—</option>' +
@@ -696,12 +950,18 @@ function renderInspector() {
     html += '<label>Arquivo de áudio</label><select data-f="fileKey"><option value="">— escolher —</option>' +
       show.data.files.map(f => '<option value="' + esc(f.key) + '"' + (f.key === c.fileKey ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('') + '</select>';
     html += '<canvas id="waveCv" width="600" height="168"></canvas>';
+    html += '<div class="waveHint">arraste as bordas verdes na forma de onda para recortar início/fim</div>';
     html += '<label>Volume <span class="dbVal" id="volLbl">' + (c.volumeDb || 0).toFixed(1) + ' dB</span></label><input type="range" data-f="volumeDb" min="-60" max="12" step="0.5" value="' + (c.volumeDb || 0) + '">';
     html += '<label>Pan (E ← → D)</label><input type="range" data-f="pan" min="-1" max="1" step="0.05" value="' + (c.pan || 0) + '">';
     html += '<div class="row2"><div><label>Fade in (s)</label><input type="number" data-f="fadeIn" min="0" step="0.1" value="' + (c.fadeIn || 0) + '"></div>' +
             '<div><label>Fade out (s)</label><input type="number" data-f="fadeOut" min="0" step="0.1" value="' + (c.fadeOut || 0) + '"></div></div>';
+    html += '<label>Curva dos fades</label>' + curveSel('fadeCurve', c.fadeCurve);
     html += '<div class="row2"><div><label>Início (s)</label><input type="number" data-f="startAt" min="0" step="0.1" value="' + (c.startAt || 0) + '"></div>' +
             '<div><label>Fim (s)</label><input type="number" data-f="endAt" min="0" step="0.1" value="' + (c.endAt || '') + '" placeholder="fim"></div></div>';
+    html += '<div class="row2"><div><label>Velocidade (%)</label><input type="number" data-f="ratePct" min="25" max="400" step="5" value="' + Math.round((c.rate || 1) * 100) + '"></div>' +
+            '<div><label>Abaixar outros (dB)</label><input type="number" data-f="duckDb" min="0" max="40" step="1" value="' + (c.duckDb || 0) + '" title="Ducking: enquanto este cue toca, os demais abaixam"></div></div>';
+    html += '<div class="row2"><div><label>Grave (dB)</label><input type="number" data-f="bassDb" min="-15" max="15" step="1" value="' + (c.bassDb || 0) + '"></div>' +
+            '<div><label>Agudo (dB)</label><input type="number" data-f="trebleDb" min="-15" max="15" step="1" value="' + (c.trebleDb || 0) + '"></div></div>';
     html += '<div class="checkRow"><input type="checkbox" id="loopChk" data-f="loop"' + (c.loop ? ' checked' : '') + '><label for="loopChk">Loop infinito</label></div>';
     html += '<div style="margin-top:12px;display:flex;gap:8px"><button id="testBtn">▶ Testar</button><button id="testStop">⏹</button></div>';
   }
@@ -709,6 +969,7 @@ function renderInspector() {
     html += '<label>Cue alvo (nº — vazio = todos)</label><input data-f="targetNumber" value="' + esc(c.targetNumber || '') + '" placeholder="todos">';
     html += '<div class="row2"><div><label>Duração (s)</label><input type="number" data-f="fadeTime" min="0.1" step="0.1" value="' + c.fadeTime + '"></div>' +
             '<div><label>Nível alvo (dB)</label><input type="number" data-f="targetDb" max="12" step="1" value="' + c.targetDb + '"' + (c.stopAfter ? ' disabled' : '') + '></div></div>';
+    html += '<label>Curva</label>' + curveSel('curve', c.curve);
     html += '<div class="checkRow"><input type="checkbox" id="stopAfterChk" data-f="stopAfter"' + (c.stopAfter ? ' checked' : '') + '><label for="stopAfterChk">Parar ao fim do fade</label></div>';
   }
   if (c.type === 'stop') {
@@ -730,11 +991,13 @@ function renderInspector() {
     const f = inp.dataset.f;
     const ev = (inp.tagName === 'SELECT' || inp.type === 'checkbox' || inp.type === 'range') ? 'change' : 'input';
     inp.addEventListener(ev, () => {
+      pushUndoTagged(c.id + ':' + f);
       let v;
       if (inp.type === 'checkbox') v = inp.checked;
       else if (inp.type === 'number' || inp.type === 'range') v = inp.value === '' ? null : parseFloat(inp.value);
       else v = inp.value;
-      c[f] = v;
+      if (f === 'ratePct') c.rate = Math.min(4, Math.max(0.25, (v || 100) / 100));
+      else c[f] = v;
       if (f === 'fileKey') {
         const fl = show.data.files.find(x => x.key === v);
         c.fileName = fl ? fl.name : '';
@@ -742,13 +1005,19 @@ function renderInspector() {
       }
       if (f === 'volumeDb' && $('volLbl')) $('volLbl').textContent = (v || 0).toFixed(1) + ' dB';
       // ajustes ao vivo em cues tocando
-      for (const inst of instances.values()) if (inst.cue.id === c.id && actx) {
-        if (f === 'volumeDb') { inst.gain.gain.cancelScheduledValues(actx.currentTime); inst.gain.gain.setValueAtTime(dbToGain(v || 0), actx.currentTime); }
+      for (const inst of instances.values()) if (inst.cue.id === c.id && actx && !inst.paused) {
+        const now = actx.currentTime;
+        if (f === 'volumeDb') { try { inst.gain.gain.cancelScheduledValues(now); } catch (e) {} inst.gain.gain.setValueAtTime(dbToGain(v || 0), now); }
+        if (f === 'ratePct') { inst.playedBuf = instPos(inst); inst.startT = now; inst.rate = c.rate; inst.src.playbackRate.setValueAtTime(c.rate, now); }
+        if (f === 'bassDb' && inst.low) inst.low.gain.setValueAtTime(v || 0, now);
+        if (f === 'trebleDb' && inst.high) inst.high.gain.setValueAtTime(v || 0, now);
       }
+      if (f === 'duckDb') recomputeDucking();
       markDirty();
-      if (['follow', 'stopAfter', 'number', 'name', 'targetNumber', 'stopTarget', 'fadeTime', 'targetDb', 'stopFade', 'preWait', 'loop', 'startAt', 'endAt', 'color'].includes(f)) {
+      if (['follow', 'stopAfter', 'number', 'name', 'targetNumber', 'stopTarget', 'fadeTime', 'targetDb', 'stopFade', 'preWait', 'loop', 'startAt', 'endAt', 'color', 'ratePct', 'duckDb', 'bassDb', 'trebleDb'].includes(f)) {
         renderCueList(); renderTransport();
         if (f === 'follow' || f === 'stopAfter') renderInspector();
+        if ((f === 'startAt' || f === 'endAt') && wavePeaks) paintWave();
       }
     });
   });
@@ -756,10 +1025,10 @@ function renderInspector() {
   if (tb) tb.onclick = () => { ensureCtx(); playCue(c); };
   const ts = el.querySelector('#testStop');
   if (ts) ts.onclick = () => fadeInstances(c.number, 0.2, null, true);
-  if (c.type === 'audio') drawWaveform(c);
+  if (c.type === 'audio') { drawWaveform(c); attachWaveDrag(c); }
 }
 
-// ---- waveform ----
+// ---- waveform + recorte por arraste ----
 let wavePeaks = null;
 async function drawWaveform(cue) {
   const cv = $('waveCv'); if (!cv) return;
@@ -769,7 +1038,7 @@ async function drawWaveform(cue) {
   if (!cue.fileKey) return;
   g.fillStyle = '#334155'; g.font = '12px sans-serif'; g.fillText('carregando forma de onda…', 10, 20);
   let buf; try { buf = await getBuffer(cue.fileKey); } catch (e) { return; }
-  const W = cv.width, H = cv.height, ch = buf.getChannelData(0), step = Math.ceil(ch.length / W);
+  const W = cv.width, ch = buf.getChannelData(0), step = Math.ceil(ch.length / W);
   const peaks = [];
   for (let i = 0; i < W; i++) {
     let mx = 0;
@@ -778,28 +1047,70 @@ async function drawWaveform(cue) {
   }
   wavePeaks = { peaks, dur: buf.duration, cue };
   paintWave();
-  // registra duração no catálogo se faltar
   const f = show.data.files.find(x => x.key === cue.fileKey);
   if (f && !f.duration) { f.duration = buf.duration; markDirty(); renderCueList(); }
 }
+function wavePixels() {
+  const { dur, cue } = wavePeaks;
+  const cv = $('waveCv');
+  const s = (cue.startAt || 0) / dur * cv.width;
+  const e = ((cue.endAt && cue.endAt > (cue.startAt || 0)) ? cue.endAt : dur) / dur * cv.width;
+  return { s, e };
+}
 function paintWave(playFrac) {
   const cv = $('waveCv'); if (!cv || !wavePeaks) return;
-  const g = cv.getContext('2d'), W = cv.width, H = cv.height, { peaks, dur, cue } = wavePeaks;
+  const g = cv.getContext('2d'), W = cv.width, H = cv.height, { peaks } = wavePeaks;
+  const { s, e } = wavePixels();
   g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
-  const s = (cue.startAt || 0) / dur * W;
-  const e = ((cue.endAt && cue.endAt > (cue.startAt || 0)) ? cue.endAt : dur) / dur * W;
   g.fillStyle = '#111827'; g.fillRect(0, 0, s, H); g.fillRect(e, 0, W - e, H);
   for (let i = 0; i < W; i++) {
     const h = Math.max(1, peaks[i] * (H - 8));
     g.fillStyle = (i >= s && i <= e) ? '#22c55e' : '#374151';
     g.fillRect(i, (H - h) / 2, 1, h);
   }
+  // alças de recorte
+  g.fillStyle = '#4ade80'; g.fillRect(s - 2, 0, 4, H); g.fillRect(e - 2, 0, 4, H);
   if (playFrac != null) {
     const x = s + playFrac * (e - s);
     g.fillStyle = '#f8fafc'; g.fillRect(x, 0, 2, H);
   }
 }
 function drawWavePlayhead(frac) { paintWave(frac); }
+
+function attachWaveDrag(cue) {
+  const cv = $('waveCv'); if (!cv) return;
+  let dragging = null; // 'start' | 'end'
+  const toCanvasX = ev => {
+    const r = cv.getBoundingClientRect();
+    return (ev.clientX - r.left) * (cv.width / r.width);
+  };
+  cv.onpointermove = ev => {
+    if (!wavePeaks) return;
+    const x = toCanvasX(ev);
+    if (dragging) {
+      const t = Math.max(0, Math.min(wavePeaks.dur, x / cv.width * wavePeaks.dur));
+      pushUndoTagged(cue.id + ':trim');
+      if (dragging === 'start') cue.startAt = Math.round(Math.min(t, (cue.endAt || wavePeaks.dur) - 0.05) * 100) / 100;
+      else cue.endAt = Math.round(Math.max(t, (cue.startAt || 0) + 0.05) * 100) / 100;
+      const si = document.querySelector('[data-f="startAt"]'), ei = document.querySelector('[data-f="endAt"]');
+      if (si) si.value = cue.startAt || 0;
+      if (ei) ei.value = cue.endAt || '';
+      paintWave(); markDirty(); renderCueList();
+      return;
+    }
+    const { s, e } = wavePixels();
+    cv.style.cursor = (Math.abs(x - s) < 8 || Math.abs(x - e) < 8) ? 'ew-resize' : 'default';
+  };
+  cv.onpointerdown = ev => {
+    if (!wavePeaks) return;
+    const x = toCanvasX(ev);
+    const { s, e } = wavePixels();
+    if (Math.abs(x - s) < 10) dragging = 'start';
+    else if (Math.abs(x - e) < 10) dragging = 'end';
+    if (dragging) cv.setPointerCapture(ev.pointerId);
+  };
+  cv.onpointerup = () => { dragging = null; };
+}
 
 // ---- VU meter ----
 function drawMeter() {
@@ -832,6 +1143,36 @@ $('masterFader').oninput = () => {
   if (masterGain) masterGain.gain.setTargetAtTime(dbToGain(db), actx.currentTime, 0.02);
 };
 
+// ---- saída de áudio (placa/interface) ----
+let sinksLoaded = false;
+async function populateSinks() {
+  const sel = $('sinkSel');
+  try {
+    if (!sinksLoaded) {
+      try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); } catch (e) {}
+      sinksLoaded = true;
+    }
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const outs = devs.filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
+    const cur = show && show.data.sinkId ? show.data.sinkId : '';
+    sel.innerHTML = '<option value="">🔈 Saída padrão</option>' +
+      outs.map((d, i) => '<option value="' + esc(d.deviceId) + '"' + (d.deviceId === cur ? ' selected' : '') + '>🔈 ' + esc(d.label || ('Saída ' + (i + 1))) + '</option>').join('');
+  } catch (e) {}
+}
+$('sinkSel').addEventListener('mousedown', () => { if (!sinksLoaded) populateSinks(); });
+$('sinkSel').onchange = () => {
+  if (show) { show.data.sinkId = $('sinkSel').value; markDirty(); }
+  applySink();
+};
+async function applySink() {
+  if (!actx || typeof actx.setSinkId !== 'function') return;
+  try { await actx.setSinkId(show && show.data.sinkId ? { deviceId: show.data.sinkId } : ''); }
+  catch (e) {
+    try { await actx.setSinkId(show && show.data.sinkId ? show.data.sinkId : ''); }
+    catch (e2) { toast('⚠ Não consegui trocar a saída: ' + e2.message); }
+  }
+}
+
 // ============ ARQUIVOS ============
 function renderFileList(container) {
   if (!container || !show) return;
@@ -843,7 +1184,9 @@ function renderFileList(container) {
       '<span style="color:var(--tx3)">' + (f.duration ? fmtT(f.duration) : '') + '</span><button class="rm">✕</button>';
     el.querySelector('.rm').onclick = async () => {
       if (!confirm('Remover "' + f.name + '" da biblioteca?')) return;
-      await sb.storage.from(BUCKET).remove([f.key]);
+      pushUndo();
+      try { await sb.storage.from(BUCKET).remove([f.key]); } catch (e) {}
+      idbDel(f.key);
       show.data.files = show.data.files.filter(x => x.key !== f.key);
       markDirty(); renderInspector();
     };
@@ -864,6 +1207,7 @@ $('fileInput').onchange = async () => {
     let duration = null;
     try {
       const ab = await file.arrayBuffer();
+      idbSet(key, ab.slice(0));
       const buf = await ensureCtx().decodeAudioData(ab);
       duration = buf.duration;
       buffers.set(key, buf);
@@ -895,6 +1239,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') document.activeElement.blur();
     return;
   }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); if (editMode) doUndo(); return; }
   if (e.code === 'Space') { e.preventDefault(); go(); }
   else if (e.key === 'Escape') { e.preventDefault(); stopAll(1); }
   else if (e.key === 'ArrowDown') { e.preventDefault(); standbyIdx = Math.min(standbyIdx + 1, cueList().length - 1); renderAll(); }

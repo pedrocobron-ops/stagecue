@@ -170,6 +170,54 @@ await page.keyboard.press("Escape"); // pânico
 await page.waitForTimeout(1600);
 check("PÂNICO (Esc) para tudo com fade", await page.locator(".playChip").count() === 0);
 
+// ---------- 8b. pausa/retomada por cue ----------
+await page.click("#testBtn"); // cue 1 ainda está em loop
+await page.waitForTimeout(500);
+await page.click(".playChip .pp");
+await page.waitForTimeout(300);
+check("pausa individual pausa só aquele cue", await page.locator(".playChip.paused").count() === 1);
+await page.click(".playChip .pp");
+await page.waitForTimeout(300);
+check("retomada individual volta a tocar do mesmo ponto", await page.locator(".playChip:not(.paused)").count() === 1);
+await page.keyboard.press("Escape");
+await page.waitForTimeout(1500);
+
+// ---------- 8c. desfazer (Ctrl+Z) ----------
+const before = await page.locator("tr.cue").count();
+await page.click("tr.cue >> nth=1");
+await page.click("#delCue");
+await page.waitForTimeout(250);
+check("excluir remove o cue", await page.locator("tr.cue").count() === before - 1);
+await page.keyboard.press("Control+z");
+await page.waitForTimeout(350);
+check("Ctrl+Z desfaz a exclusão", await page.locator("tr.cue").count() === before);
+
+// ---------- 8d. recursos profissionais no inspector ----------
+await page.click("tr.cue >> nth=0");
+await page.waitForTimeout(500);
+check("campos de velocidade, EQ, ducking e curva de fade",
+  (await page.locator('[data-f="ratePct"]').count()) === 1 &&
+  (await page.locator('[data-f="bassDb"]').count()) === 1 &&
+  (await page.locator('[data-f="trebleDb"]').count()) === 1 &&
+  (await page.locator('[data-f="duckDb"]').count()) === 1 &&
+  (await page.locator('[data-f="fadeCurve"]').count()) === 1);
+check("seletor de saída de áudio presente", await page.locator("#sinkSel").isVisible());
+check("botão de exportar backup presente", await page.locator("#exportBtn").isVisible());
+check("botão de importar na tela de espetáculos existe", (await page.locator("#importBtn").count()) === 1);
+
+// ---------- 8e. velocidade altera a duração exibida ----------
+await page.uncheck("#loopChk");
+await page.waitForTimeout(200);
+await page.fill('[data-f="ratePct"]', "200");
+await page.dispatchEvent('[data-f="ratePct"]', "input");
+await page.waitForTimeout(300);
+check("velocidade 200% reduz a duração na lista para ~0,3s",
+  (await page.locator("tr.cue >> nth=0").innerText()).includes("0:00.3") ||
+  (await page.locator("tr.cue >> nth=0").innerText()).includes("0:00.2"));
+await page.fill('[data-f="ratePct"]', "100");
+await page.dispatchEvent('[data-f="ratePct"]', "input");
+await page.waitForTimeout(200);
+
 // ---------- 9. modo operação + autosave ----------
 await page.click("#modeBtn");
 await page.waitForTimeout(200);
@@ -178,9 +226,9 @@ await page.click("#modeBtn");
 check("autosave gravou alterações no servidor (PATCH)", patchCount > 0, `${patchCount} gravações`);
 
 // ---------- 10. teclas de navegação ----------
-await page.keyboard.press("ArrowUp");
+await page.keyboard.press("ArrowDown");
 await page.waitForTimeout(150);
-check("setas movem o standby", (await page.locator("#standbyName").innerText()).includes("Deixa"));
+check("setas movem o standby", (await page.locator("#standbyName").innerText()).includes("Parar"));
 
 await browser.close();
 server.close();
