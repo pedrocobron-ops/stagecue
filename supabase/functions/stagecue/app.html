@@ -5,46 +5,119 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0b0d10">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>StageCue — Operação de Som para Teatro</title>
 <style>
   :root{
-    --bg:#0b0d10; --bg2:#12151a; --bg3:#1a1e25; --line:#262c36;
-    --tx:#e8ecf1; --tx2:#9aa4b2; --tx3:#5c6672;
-    --go:#22c55e; --go2:#16a34a; --warn:#f59e0b; --danger:#ef4444;
-    --accent:#38bdf8; --sel:#1d4ed8; --playing:#052e16;
-    --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+    /* superfícies — rampa fria consistente */
+    --bg:#0a0c10; --bg2:#11141b; --bg3:#191e27; --bg4:#222836;
+    --line:#252b37; --line2:#333b4a;
+    /* texto */
+    --tx:#eaeef4; --tx2:#a4aebd; --tx3:#7d8794;
+    /* semânticas — o verde GO é o protagonista */
+    --go:#22c55e; --go2:#16a34a; --go3:#128a40;
+    --go-dim:#86efac; --go-ink:#03180b; --go-glow:rgba(34,197,94,.28);
+    --warn:#f5a623; --warn-bg:#2a2005; --warn-line:#7c5e0b;
+    --danger:#ef4444; --danger-bg:#2a1114; --danger-line:#7f1d1d; --danger-dim:#fca5a5;
+    --accent:#38bdf8; --sel:#3b82f6; --sel-bg:#13233c;
+    --playing:#092b18; --playing-line:#14532d;
+    /* geometria e profundidade */
+    --r1:6px; --r2:10px; --r3:16px;
+    --shadow-1:0 1px 2px rgba(0,0,0,.5);
+    --shadow-2:0 8px 24px rgba(0,0,0,.45);
+    --sans:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:'JetBrains Mono','SF Mono',Consolas,'Roboto Mono',monospace;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  body{background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,'Segoe UI',Roboto,Inter,sans-serif;overflow:hidden}
-  button{font:inherit;color:inherit;background:var(--bg3);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer}
-  button:hover{border-color:var(--tx3)}
+  html{-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--tx);font:14px/1.45 var(--sans);overflow:hidden;overscroll-behavior:none}
+  ::selection{background:var(--sel);color:#fff}
+  .clock,.cueNo,.cueDur,.cueWait,.dbVal{font-variant-numeric:tabular-nums}
+  .srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+  /* ---------- botões: primário / secundário / perigo ---------- */
+  button{font:inherit;color:inherit;border:1px solid var(--line);border-radius:var(--r1);
+    padding:7px 14px;cursor:pointer;
+    background:linear-gradient(180deg,var(--bg4),var(--bg3));
+    box-shadow:var(--shadow-1),inset 0 1px 0 rgba(255,255,255,.04);
+    transition:background-color .12s,border-color .12s,box-shadow .12s,color .12s,transform .06s}
+  button:hover{border-color:var(--line2);background:linear-gradient(180deg,#28303f,var(--bg4))}
+  button:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.35)}
   button:disabled{opacity:.4;cursor:not-allowed}
-  input,select,textarea{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .primary{background:linear-gradient(180deg,#1db457,var(--go2));border:1px solid #0e6b33;
+    font-weight:700;color:#e9fbef;text-shadow:0 1px 1px rgba(0,0,0,.3);
+    box-shadow:var(--shadow-1),inset 0 1px 0 rgba(255,255,255,.18)}
+  .primary:hover{background:linear-gradient(180deg,var(--go),#1db457);border-color:var(--go3)}
+  .dangerBtn{color:var(--danger)}
+  .dangerBtn:hover{background:var(--danger-bg);border-color:var(--danger-line)}
+  button,kbd,.topbar,.transport,.playChip,tr.cue,.tabs,.showItem{-webkit-user-select:none;user-select:none}
+
+  /* ---------- inputs ---------- */
+  input,select,textarea{font:inherit;color:var(--tx);background:#0c0f15;border:1px solid var(--line);
+    border-radius:var(--r1);padding:7px 10px;width:100%;transition:border-color .12s,box-shadow .12s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(56,189,248,.18)}
+  input[type=number]{font-family:var(--mono);font-size:13px}
+  input[type=checkbox]{accent-color:var(--go);width:16px;height:16px}
+  select{appearance:none;-webkit-appearance:none;padding-right:30px;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a4aebd' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center}
   input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
     -webkit-text-fill-color:var(--tx);caret-color:var(--tx);
-    -webkit-box-shadow:0 0 0 1000px var(--bg) inset;box-shadow:0 0 0 1000px var(--bg) inset;
+    -webkit-box-shadow:0 0 0 1000px #0c0f15 inset;box-shadow:0 0 0 1000px #0c0f15 inset;
     transition:background-color 99999s ease-in-out 0s}
-  input:autofill{-webkit-text-fill-color:var(--tx);box-shadow:0 0 0 1000px var(--bg) inset}
-  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:10px 0 4px}
+  input:autofill{-webkit-text-fill-color:var(--tx);box-shadow:0 0 0 1000px #0c0f15 inset}
+  label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tx2);margin:14px 0 5px}
+
+  /* faders (master, volume, pan) com cara de mesa */
+  input[type=range]{-webkit-appearance:none;appearance:none;height:26px;padding:0;
+    background:transparent;border:none;cursor:pointer;width:100%;box-shadow:none}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:#0b0e14;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.05)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:26px;
+    margin-top:-11px;border-radius:3px;border:1px solid #05070a;
+    background:
+      linear-gradient(0deg,transparent 11px,var(--go) 11px,var(--go) 13px,transparent 13px),
+      linear-gradient(180deg,#434c5c 0%,#2a313d 45%,#1c212b 52%,#2e3542 100%);
+    box-shadow:0 2px 5px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.14)}
+  input[type=range]:hover::-webkit-slider-thumb{background:
+      linear-gradient(0deg,transparent 11px,#4ade80 11px,#4ade80 13px,transparent 13px),
+      linear-gradient(180deg,#4d5768 0%,#333b49 45%,#232935 52%,#374050 100%)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:#0b0e14;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.9)}
+  input[type=range]::-moz-range-thumb{width:15px;height:26px;border-radius:3px;border:1px solid #05070a;
+    background:
+      linear-gradient(0deg,transparent 11px,var(--go) 11px,var(--go) 13px,transparent 13px),
+      linear-gradient(180deg,#434c5c 0%,#2a313d 45%,#1c212b 52%,#2e3542 100%)}
+  input[type=range]:focus-visible{outline:none}
+  input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 2px 5px rgba(0,0,0,.65),0 0 0 3px rgba(56,189,248,.35)}
+
+  /* foco de teclado visível (cabine escura, app operado por teclado) */
+  button:focus-visible,select:focus-visible,tr.cue:focus-visible,.showItem:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px}
+  #goBtn:focus-visible{outline:3px solid var(--go-dim);outline-offset:3px}
+
   .hidden{display:none!important}
   .screen{position:fixed;inset:0;display:flex;flex-direction:column}
 
   /* ---------- AUTH ---------- */
-  #authScreen{align-items:center;justify-content:center;background:radial-gradient(1200px 600px at 50% -10%,#12203a 0%,var(--bg) 60%)}
-  .authCard{width:380px;max-width:92vw;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:32px}
-  .logo{font-size:26px;font-weight:800;letter-spacing:-.02em;text-align:center}
-  .logo em{font-style:normal;color:var(--go)}
+  #authScreen{align-items:center;justify-content:center;background:
+    radial-gradient(900px 480px at 50% -8%,rgba(34,197,94,.07) 0%,transparent 55%),
+    radial-gradient(1200px 600px at 50% -10%,#111d30 0%,var(--bg) 60%)}
+  .authCard{width:380px;max-width:92vw;background:var(--bg2);border:1px solid var(--line);
+    border-radius:var(--r3);padding:32px;box-shadow:var(--shadow-2)}
+  .logo{font-size:26px;font-weight:800;letter-spacing:-.03em;text-align:center}
+  .logo em{font-style:normal;color:var(--go);text-shadow:0 0 16px var(--go-glow)}
   .tagline{text-align:center;color:var(--tx2);font-size:13px;margin:6px 0 22px}
   .tabs{display:flex;gap:6px;margin-bottom:14px}
-  .tabs button{flex:1;background:transparent}
-  .tabs button.on{background:var(--bg3);border-color:var(--accent)}
+  .tabs button{flex:1;background:transparent;box-shadow:none}
+  .tabs button.on{background:var(--bg3);border-color:var(--go2);color:var(--go-dim)}
   .authCard .primary{width:100%;margin-top:18px}
-  .primary{background:var(--go2);border-color:var(--go2);font-weight:700}
-  .primary:hover{background:var(--go)}
   .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:18px}
   .ok{color:var(--go);font-size:13px;margin-top:10px}
 
@@ -52,41 +125,79 @@
   #showsScreen{align-items:center;padding-top:8vh}
   .showsCard{width:560px;max-width:94vw}
   .showsHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:8px;flex-wrap:wrap}
-  .showItem{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:10px;cursor:pointer}
-  .showItem:hover{border-color:var(--accent)}
+  .showsHead .logo{font-size:22px}
+  .showItem{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);
+    border-radius:var(--r2);padding:14px 18px;margin-bottom:10px;cursor:pointer;
+    transition:border-color .12s,background-color .12s,transform .12s}
+  .showItem:hover{border-color:var(--go2);background:var(--bg3);transform:translateY(-1px)}
   .showItem .nm{font-weight:700;font-size:16px;flex:1}
   .showItem .dt{color:var(--tx3);font-size:12px}
+  .showItem .del{margin-left:10px}
+  .showItem .del:hover{border-color:var(--danger-line);color:var(--danger);background:var(--danger-bg)}
   .iconBtn{padding:6px 10px;font-size:13px}
 
-  /* ---------- OPERAÇÃO ---------- */
+  /* ---------- OPERAÇÃO: topbar ---------- */
   #opScreen{display:flex;flex-direction:column}
-  .topbar{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg2);
+    border-bottom:1px solid var(--line);flex-wrap:wrap;row-gap:6px}
   .topbar .logo{font-size:17px}
-  .showName{font-weight:700;color:var(--tx);max-width:20vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tbGroup{display:flex;align-items:center;gap:8px}
+  .tbGroup + .tbGroup{border-left:1px solid var(--line);padding-left:12px;margin-left:2px}
+  .showName{font-weight:700;color:var(--tx);max-width:18vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .clock{font-family:var(--mono);font-size:15px;color:var(--tx2)}
-  .clock b{color:var(--tx)}
+  .clock b,.clock strong{color:var(--tx);font-weight:700}
+  #showTimer.running{color:var(--go)}
   .spacer{flex:1}
   .masterWrap{display:flex;align-items:center;gap:10px}
   .masterWrap input[type=range]{width:120px}
-  #meterCv{width:80px;height:26px;background:#000;border:1px solid var(--line);border-radius:4px}
-  #sinkSel{width:150px;font-size:12px;padding:5px 6px}
-  .modeBtn.on{border-color:var(--go);color:var(--go);font-weight:700}
-  .saveState{font-size:11px;color:var(--tx3);width:90px;text-align:right}
+  #meterCv{width:80px;height:26px;background:#05070b;border:1px solid var(--line);border-radius:var(--r1);
+    box-shadow:inset 0 1px 4px rgba(0,0,0,.7)}
+  #sinkSel{width:150px;font-size:12px;padding:5px 26px 5px 8px}
+  .modeBtn.on{border-color:var(--go);color:var(--go);font-weight:700;
+    background:linear-gradient(180deg,#0f2b1a,#0b2113);
+    box-shadow:0 0 10px rgba(34,197,94,.15),inset 0 1px 0 rgba(255,255,255,.04)}
+  .saveState{font-size:11px;color:var(--tx3);min-width:70px;text-align:right}
+
+  /* casa aberta: faixa verde + ajustes de operação */
+  #opScreen.opmode .topbar{border-bottom:2px solid var(--go2)}
+  #opScreen.opmode #sinkSel{pointer-events:none;opacity:.55}
+  #opScreen.opmode .kbdHint{display:none}
+  #opScreen.opmode #goBtn{width:180px;height:84px}
+  #opScreen.opmode .standbyInfo .nm{font-size:30px}
+  #opScreen.opmode .deixa{font-size:17px}
+  #opScreen.opmode table.cues td{padding:12px 10px}
+  #opScreen.opmode .prog{height:6px}
+  #opScreen.opmode tr.cue.selected{background:transparent;outline:none}
+  #opScreen.opmode tr.cue.selected:nth-child(even){background:rgba(255,255,255,.016)}
+  #opScreen.opmode tr.cue.selected.standby{background:linear-gradient(90deg,rgba(34,197,94,.12),rgba(34,197,94,.03) 45%,transparent 75%)}
+  #opScreen.opmode tr.cue.selected.playing{background:var(--playing)}
+  body.paused #opScreen{box-shadow:inset 0 0 0 3px var(--warn)}
 
   .main{flex:1;display:flex;min-height:0}
   .cuePane{flex:1;display:flex;flex-direction:column;min-width:0}
-  .cueToolbar{display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
-  .cueToolbar button{font-size:13px;padding:6px 11px}
+  .cueToolbar{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
+  .cueToolbar button{font-size:13px;padding:6px 10px}
   .cueListWrap{flex:1;overflow-y:auto}
+
+  /* ---------- tabela de cues ---------- */
   table.cues{width:100%;border-collapse:collapse;font-size:var(--listfs,14px)}
-  table.cues th{position:sticky;top:0;background:var(--bg2);color:var(--tx3);font-size:11px;text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);z-index:2}
-  table.cues td{padding:8px 10px;border-bottom:1px solid #171b21;vertical-align:middle}
+  table.cues th{position:sticky;top:0;background:var(--bg2);color:var(--tx3);font-size:11px;
+    text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:7px 10px;
+    box-shadow:0 1px 0 var(--line);border-bottom:none;z-index:2}
+  table.cues td{padding:8px 10px;border-bottom:1px solid rgba(37,43,55,.55);vertical-align:middle}
   tr.cue{cursor:pointer;position:relative}
-  tr.cue:hover{background:#141922}
-  tr.cue.selected{background:#12233d;outline:1px solid var(--sel)}
+  /* ordem importa: zebra → hover → selected → standby → playing */
+  tr.cue:nth-child(even){background:rgba(255,255,255,.016)}
+  tr.cue:hover{background:var(--bg3)}
+  tr.cue.selected{background:var(--sel-bg);outline:1px solid var(--sel);outline-offset:-1px}
+  tr.cue.standby{background:linear-gradient(90deg,rgba(34,197,94,.12),rgba(34,197,94,.03) 45%,transparent 75%)}
   tr.cue.standby td:first-child{box-shadow:inset 4px 0 0 var(--go)}
-  tr.cue.playing{background:var(--playing)}
-  tr.cue.playing .cueNm{color:#86efac}
+  tr.cue.standby .cueNo{color:var(--go);font-weight:700}
+  tr.cue.standby .cueNm{color:#d5f5e0}
+  tr.cue.playing{background:var(--playing);box-shadow:inset 0 0 0 1px rgba(20,83,45,.6)}
+  tr.cue.playing .cueNm{color:var(--go-dim)}
+  tr.cue.playing .cueNo{color:var(--go)}
+  tr.cue.playing td:first-child{box-shadow:inset 4px 0 0 var(--go-dim)}
   tr.cue.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
   .cueNo{font-family:var(--mono);color:var(--tx2);width:52px}
   .cueTy{width:34px;font-size:1.08em}
@@ -94,54 +205,127 @@
   .cueSub{color:var(--tx3);font-size:.88em}
   .cueDur,.cueWait{font-family:var(--mono);font-size:.86em;color:var(--tx2);width:70px}
   .cueFollow{width:40px;color:var(--warn);font-size:.95em}
-  .prog{height:3px;background:#0f2417;border-radius:2px;overflow:hidden;margin-top:5px;display:none}
+  .prog{height:4px;background:rgba(34,197,94,.12);border-radius:2px;overflow:hidden;margin-top:5px;display:none}
   tr.cue.playing .prog{display:block}
-  .prog i{display:block;height:100%;background:var(--go);width:0%}
+  .prog i{display:block;height:100%;background:linear-gradient(90deg,var(--go2),var(--go));
+    box-shadow:0 0 6px var(--go-glow);width:0%}
   .colorDot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px}
 
-  /* inspector */
-  .inspector{width:330px;border-left:1px solid var(--line);background:var(--bg2);overflow-y:auto;padding:14px 16px}
-  .inspector h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin-bottom:4px}
+  /* ---------- inspector ---------- */
+  .inspector{width:340px;border-left:1px solid var(--line);background:var(--bg2);overflow-y:auto;padding:16px 18px}
+  .inspector h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);
+    padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .inspSec{border:1px solid var(--line);border-radius:var(--r2);padding:2px 12px 12px;margin-top:12px}
+  .inspSec>h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-top:9px}
+  .inspTest{position:sticky;bottom:-16px;background:var(--bg2);padding:10px 0 12px;display:flex;gap:8px;border-top:1px solid var(--line);margin-top:14px;z-index:3}
   .row2{display:flex;gap:10px}
   .row2>div{flex:1}
-  #waveCv{width:100%;height:84px;background:#000;border:1px solid var(--line);border-radius:8px;margin-top:8px;touch-action:none}
-  .waveHint{font-size:10.5px;color:var(--tx3);margin-top:3px}
+  #waveCv{width:100%;height:84px;background:#05070b;border:1px solid var(--line);border-radius:var(--r1);
+    margin-top:8px;touch-action:none;box-shadow:inset 0 2px 8px rgba(0,0,0,.6)}
+  .waveHint{font-size:11px;color:var(--tx3);margin-top:4px;letter-spacing:.02em}
   .fileList{margin-top:8px}
-  .fileItem{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12.5px}
+  .fileItem{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);
+    border-radius:var(--r1);margin-bottom:6px;font-size:12px}
   .fileItem .fn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .fileItem button{padding:2px 8px;font-size:12px}
   .checkRow{display:flex;align-items:center;gap:8px;margin-top:10px}
   .checkRow input{width:auto}
-  .checkRow label{margin:0;text-transform:none;font-size:13px;color:var(--tx)}
+  .checkRow label{margin:0;text-transform:none;font-size:13px;font-weight:400;color:var(--tx);cursor:pointer}
   .dbVal{font-family:var(--mono);font-size:12px;color:var(--tx2);width:64px;text-align:right}
 
-  /* transport */
-  .transport{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--bg2);border-top:1px solid var(--line)}
-  #goBtn{width:150px;height:74px;font-size:30px;font-weight:900;letter-spacing:.08em;background:var(--go2);border:none;border-radius:14px;color:#04170a}
-  #goBtn:hover{background:var(--go)}
-  #goBtn:active{transform:scale(.97)}
-  #pauseBtn{height:74px;width:84px;font-size:15px;font-weight:700;border-radius:14px}
-  #pauseBtn.on{border-color:var(--warn);color:var(--warn)}
-  #fadeBtn{height:74px;width:90px;font-size:15px;font-weight:800;border-radius:14px;background:#2a2005;border-color:#7c5e0b;color:#fbbf24}
-  #fadeBtn:hover{background:#453a10}
-  #panicBtn{height:74px;width:110px;font-size:15px;font-weight:800;border-radius:14px;background:#450a0a;border-color:#7f1d1d;color:#fca5a5}
-  #panicBtn:hover{background:#7f1d1d}
+  /* ---------- transporte (console) ---------- */
+  .transport{display:flex;align-items:center;gap:16px;padding:14px 18px;
+    background:linear-gradient(180deg,#141821,var(--bg2));border-top:1px solid var(--line2)}
+  .transport button{transition:background-color .12s,box-shadow .12s,transform .06s}
+  #goBtn{width:150px;height:74px;font-size:30px;font-weight:800;letter-spacing:.1em;
+    font-family:var(--sans);color:var(--go-ink);border:none;border-radius:var(--r2);
+    background:linear-gradient(180deg,#2fd06b 0%,var(--go2) 55%,var(--go3) 100%);
+    box-shadow:0 0 0 1px #0e6b33,0 3px 0 #0b5227,0 0 22px var(--go-glow),inset 0 1px 0 rgba(255,255,255,.25);
+    text-shadow:0 1px 0 rgba(255,255,255,.18);touch-action:manipulation}
+  #goBtn:hover{background:linear-gradient(180deg,#3ddd79 0%,var(--go) 55%,var(--go2) 100%);
+    box-shadow:0 0 0 1px #0e6b33,0 3px 0 #0b5227,0 0 30px rgba(34,197,94,.45),inset 0 1px 0 rgba(255,255,255,.3)}
+  #goBtn:active{transform:translateY(3px);
+    box-shadow:0 0 0 1px #0e6b33,0 0 0 #0b5227,0 0 14px var(--go-glow),inset 0 2px 6px rgba(0,0,0,.35)}
+  #pauseBtn{height:74px;width:84px;font-size:14px;font-weight:700;border-radius:var(--r2);
+    background:linear-gradient(180deg,var(--bg4),var(--bg3));border:1px solid var(--line2);
+    box-shadow:0 2px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);touch-action:manipulation}
+  #pauseBtn:active{transform:translateY(2px);box-shadow:inset 0 2px 5px rgba(0,0,0,.4)}
+  #pauseBtn.on{border-color:var(--warn);color:var(--warn);
+    background:linear-gradient(180deg,#332708,var(--warn-bg));
+    box-shadow:0 2px 0 rgba(0,0,0,.45),0 0 14px rgba(245,166,35,.22),inset 0 1px 0 rgba(255,255,255,.06)}
+  #fadeBtn{height:74px;width:90px;font-size:14px;font-weight:700;border-radius:var(--r2);
+    background:linear-gradient(180deg,#332708,var(--warn-bg));border:1px solid var(--warn-line);color:#fbbf24;
+    box-shadow:0 2px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);touch-action:manipulation}
+  #fadeBtn:hover{background:linear-gradient(180deg,#453a10,#332708)}
+  #fadeBtn:active{transform:translateY(2px);box-shadow:inset 0 2px 5px rgba(0,0,0,.4)}
+  #panicBtn{height:74px;width:110px;font-size:14px;font-weight:800;letter-spacing:.03em;border-radius:var(--r2);
+    background:linear-gradient(180deg,#521010,var(--danger-bg) 60%,#1f0b0d);
+    border:1px solid var(--danger-line);color:var(--danger-dim);
+    box-shadow:0 2px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);touch-action:manipulation}
+  #panicBtn:hover{background:linear-gradient(180deg,#7f1d1d,#521010);color:#fecaca;
+    box-shadow:0 2px 0 rgba(0,0,0,.45),0 0 16px rgba(239,68,68,.3)}
+  #panicBtn:active{transform:translateY(2px);box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+  .transRight{display:flex;gap:10px;align-items:center}
+  .transRight #panicBtn{margin-left:24px}
   .standbyInfo{flex:1;min-width:0}
-  .standbyInfo .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3)}
-  .standbyInfo .nm{font-size:20px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .standbyInfo .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--go2);font-weight:700}
+  .standbyInfo .nm{font-size:24px;font-weight:800;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .standbyInfo .nx{font-size:12px;color:var(--tx2);margin-top:2px}
-  .playingNow{max-width:34vw;overflow:hidden}
-  .playChip{display:inline-flex;align-items:center;gap:6px;background:var(--playing);border:1px solid #14532d;color:#86efac;border-radius:8px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12.5px;font-family:var(--mono)}
-  .playChip.paused{border-color:var(--warn);color:var(--warn);background:#2a2005}
-  .playChip button{padding:1px 6px;font-size:11px;border-radius:5px;background:transparent;border-color:#14532d;color:inherit}
-  .playChip.ending{border-color:var(--warn);color:var(--warn);animation:scBlink .6s steps(2,start) infinite}
-  @keyframes scBlink{to{opacity:.5}}
-  .deixa{font-size:12.5px;color:var(--warn);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .deixa{font-size:15px;color:var(--warn);font-weight:600;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #gotoBox{font-size:13px;color:var(--accent);margin-top:3px;font-family:var(--mono)}
-  .kbdHint{color:var(--tx3);font-size:11px}
-  kbd{background:var(--bg3);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:11px}
-  ::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#2a313c;border-radius:6px}
-  .toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid var(--accent);padding:10px 18px;border-radius:10px;z-index:99;font-size:13px}
+  .bigRemain{font-family:var(--mono);font-size:24px;color:var(--tx2);min-width:104px;text-align:right}
+  .bigRemain.ending{color:var(--warn);animation:scPulse 1s ease-in-out infinite}
+  .playingNow{max-width:30vw;overflow:hidden}
+  .playChip{display:inline-flex;align-items:center;gap:6px;background:var(--playing);
+    border:1px solid var(--playing-line);color:var(--go-dim);border-radius:999px;
+    padding:3px 6px 3px 10px;margin:2px 4px 2px 0;font-size:12px;font-family:var(--mono);
+    box-shadow:0 0 8px rgba(34,197,94,.10),inset 0 1px 0 rgba(255,255,255,.04)}
+  .playChip button{padding:1px 7px;font-size:11px;border-radius:999px;background:rgba(0,0,0,.25);
+    border-color:var(--playing-line);color:inherit;box-shadow:none}
+  .playChip button:hover{background:rgba(34,197,94,.15);border-color:var(--go2)}
+  .playChip.paused{border-color:var(--warn-line);color:var(--warn);background:var(--warn-bg);box-shadow:none}
+  .playChip.waiting{border-color:var(--accent);color:var(--accent);background:#0c1a2e;box-shadow:none}
+  .playChip.ending{border-color:var(--warn);color:var(--warn);animation:scPulse 1s ease-in-out infinite}
+  @keyframes scPulse{50%{opacity:.55;box-shadow:0 0 10px rgba(245,166,35,.25)}}
+  @keyframes scBlink{to{opacity:.5}}
+  .kbdHint{color:var(--tx3);font-size:11px;line-height:1.9}
+  kbd{background:linear-gradient(180deg,var(--bg4),var(--bg3));border:1px solid var(--line2);
+    border-bottom-width:2px;border-radius:4px;padding:1px 6px;font-family:var(--mono);font-size:11px}
+
+  /* ---------- modal pré-show ---------- */
+  #preshowModal{backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #preshowModal>div{box-shadow:var(--shadow-2),0 0 0 1px rgba(255,255,255,.03);animation:toastIn .18s ease-out}
+
+  /* ---------- toast / scrollbar ---------- */
+  .toast{position:fixed;bottom:116px;left:50%;transform:translateX(-50%);
+    background:var(--bg3);border:1px solid var(--line2);border-left:3px solid var(--accent);
+    padding:10px 18px;border-radius:var(--r2);z-index:99;font-size:13px;pointer-events:none;
+    box-shadow:var(--shadow-2);animation:toastIn .18s cubic-bezier(.2,.9,.3,1.2)}
+  .toast.err{border-left-color:var(--danger)}
+  .toast.ok{border-left-color:var(--go)}
+  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#39424f;border-radius:6px;border:2px solid var(--bg2);background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:#4a5462;border:2px solid var(--bg2);background-clip:padding-box}
+  .cueListWrap,.inspector{scrollbar-width:thin;scrollbar-color:#39424f transparent}
+
+  /* ---------- responsivo ---------- */
+  @media (max-width:1280px){
+    .kbdHint{display:none}
+    #sinkSel{width:110px}
+    .masterWrap input[type=range]{width:80px}
+    .showName{max-width:12vw}
+    .bigRemain{font-size:19px;min-width:84px}
+  }
+  @media (max-width:1024px){
+    .inspector{width:290px}
+    .tbGroup .clock:first-child{display:none}
+    #goBtn{width:120px}
+    #panicBtn{width:92px}
+    .playingNow{max-width:22vw}
+    .standbyInfo .nm{font-size:19px}
+  }
 </style>
 </head>
 <body>
@@ -156,12 +340,12 @@
       <button id="tabSignup">Criar conta</button>
     </div>
     <div id="signupNameWrap" class="hidden">
-      <label>Seu nome</label>
+      <label for="authName">Seu nome</label>
       <input id="authName" placeholder="Ex.: Pedro">
     </div>
-    <label>E-mail</label>
+    <label for="authEmail">E-mail</label>
     <input id="authEmail" type="email" placeholder="voce@exemplo.com" autocomplete="username">
-    <label>Senha</label>
+    <label for="authPass">Senha</label>
     <input id="authPass" type="password" placeholder="mínimo 8 caracteres" autocomplete="current-password">
     <button id="authBtn" class="primary">Entrar</button>
     <div id="authErr" class="err"></div>
@@ -181,7 +365,8 @@
     </div>
     <div id="showsList"></div>
     <div id="showsEmpty" class="hidden" style="color:var(--tx2);text-align:center;padding:40px 0">
-      Nenhum espetáculo ainda. Crie o primeiro e comece a montar seus cues.
+      Nenhum espetáculo ainda. Crie o primeiro e comece a montar seus cues.<br><br>
+      <button class="primary" onclick="document.getElementById('newShowBtn').click()">+ Criar espetáculo</button>
     </div>
   </div>
 </div>
@@ -189,24 +374,30 @@
 <!-- ===== TELA DE OPERAÇÃO ===== -->
 <div id="opScreen" class="screen hidden">
   <div class="topbar">
+    <button id="backBtn" class="iconBtn" title="Voltar aos espetáculos" aria-label="Voltar aos espetáculos">←</button>
     <div class="logo">Stage<em>Cue</em></div>
-    <button id="backBtn" class="iconBtn" title="Voltar aos espetáculos">←</button>
     <div class="showName" id="opShowName"></div>
-    <div class="clock">🕐 <b id="wallClock">--:--:--</b></div>
-    <div class="clock" title="Cronômetro do espetáculo — inicia no primeiro GO">⏱ <b id="showTimer">00:00:00</b></div>
     <div class="spacer"></div>
-    <select id="sinkSel" title="Escolher a saída de áudio (placa/interface)"><option value="">🔈 Saída padrão</option></select>
-    <div class="masterWrap">
-      <span style="font-size:11px;color:var(--tx2)">MASTER</span>
-      <input type="range" id="masterFader" min="-60" max="6" step="0.5" value="0">
-      <span class="dbVal" id="masterDb">0.0 dB</span>
-      <canvas id="meterCv" width="160" height="52"></canvas>
+    <div class="tbGroup" title="Hora local · cronômetro do espetáculo (inicia no primeiro GO)">
+      <div class="clock"><span aria-hidden="true">🕐</span> <b id="wallClock">--:--:--</b></div>
+      <div class="clock"><span aria-hidden="true">⏱</span> <b id="showTimer">00:00:00</b></div>
     </div>
-    <button id="fontMinus" class="iconBtn" title="Diminuir a letra da lista">A−</button>
-    <button id="fontPlus" class="iconBtn" title="Aumentar a letra da lista">A+</button>
-    <button id="preshowBtn" title="Checklist antes de abrir a casa">🎬 Pré-show</button>
-    <button id="modeBtn" class="modeBtn">✏️ Edição</button>
-    <div class="saveState" id="saveState"></div>
+    <div class="tbGroup">
+      <select id="sinkSel" title="Escolher a saída de áudio (placa/interface)" aria-label="Saída de áudio"><option value="">🔈 Saída padrão</option></select>
+      <div class="masterWrap">
+        <span style="font-size:11px;color:var(--tx2)">MASTER</span>
+        <input type="range" id="masterFader" min="-60" max="6" step="0.5" value="0" aria-label="Volume master">
+        <span class="dbVal" id="masterDb">0.0 dB</span>
+        <canvas id="meterCv" width="160" height="52" role="img" aria-label="Medidor de nível"></canvas>
+      </div>
+    </div>
+    <div class="tbGroup">
+      <button id="fontMinus" class="iconBtn" title="Diminuir a letra da lista" aria-label="Diminuir a letra da lista">A−</button>
+      <button id="fontPlus" class="iconBtn" title="Aumentar a letra da lista" aria-label="Aumentar a letra da lista">A+</button>
+      <button id="preshowBtn" title="Checklist antes de abrir a casa">🎬 Pré-show</button>
+      <button id="modeBtn" class="modeBtn">✏️ Edição</button>
+    </div>
+    <div class="saveState" id="saveState" title="Estado do salvamento na nuvem"></div>
   </div>
 
   <div class="main">
@@ -219,13 +410,13 @@
         <span style="flex:1"></span>
         <button id="exportBtn" title="Baixar backup do espetáculo">💾 Exportar</button>
         <button id="dupCue">Duplicar</button>
-        <button id="upCue">↑</button>
-        <button id="downCue">↓</button>
-        <button id="delCue" style="color:var(--danger)">Excluir</button>
+        <button id="upCue" title="Mover cue para cima" aria-label="Mover cue para cima">↑</button>
+        <button id="downCue" title="Mover cue para baixo" aria-label="Mover cue para baixo">↓</button>
+        <button id="delCue" class="dangerBtn">Excluir</button>
       </div>
       <div class="cueListWrap">
         <table class="cues">
-          <thead><tr><th style="width:52px">Nº</th><th style="width:34px"></th><th>Nome</th><th style="width:70px">Pré</th><th style="width:70px">Duração</th><th style="width:40px" title="Segue automático">Auto</th></tr></thead>
+          <thead><tr><th scope="col" style="width:52px">Nº</th><th scope="col" style="width:34px"><span class="srOnly">Tipo</span></th><th scope="col">Nome</th><th scope="col" style="width:70px" title="Pré-espera após o GO">Pré</th><th scope="col" style="width:70px">Duração</th><th scope="col" style="width:40px" title="Continuação automática">Auto</th></tr></thead>
           <tbody id="cueBody"></tbody>
         </table>
       </div>
@@ -242,9 +433,6 @@
 
   <div class="transport">
     <button id="goBtn" title="Espaço">GO</button>
-    <button id="pauseBtn" title="P — pausa geral">⏸ PAUSA</button>
-    <button id="fadeBtn" title="F — desce tudo suavemente (3s) e para">📉 FADE</button>
-    <button id="panicBtn" title="Esc — para tudo IMEDIATAMENTE">🛑 PÂNICO</button>
     <div class="standbyInfo">
       <div class="lbl">Em standby</div>
       <div class="nm" id="standbyName">—</div>
@@ -253,6 +441,12 @@
       <div id="gotoBox" class="hidden"></div>
     </div>
     <div class="playingNow" id="playingNow"></div>
+    <div class="bigRemain" id="bigRemain" title="Tempo restante do cue mais próximo de terminar"></div>
+    <div class="transRight">
+      <button id="pauseBtn" title="P — pausa geral">⏸ PAUSA</button>
+      <button id="fadeBtn" title="F — desce tudo suavemente (3s) e para">📉 FADE</button>
+      <button id="panicBtn" title="Esc — para tudo (2× = corte seco)">🛑 PÂNICO</button>
+    </div>
     <div class="kbdHint"><kbd>Espaço</kbd> GO &nbsp; <kbd>↑↓</kbd> standby &nbsp; <kbd>P</kbd> pausa &nbsp; <kbd>F</kbd> fade geral &nbsp; <kbd>Esc</kbd> pânico &nbsp; <kbd>Ctrl+Z</kbd> desfaz</div>
   </div>
 </div>
@@ -261,11 +455,11 @@
 <input type="file" id="importInput" accept=".json,application/json" class="hidden">
 
 <!-- ===== CHECKLIST PRÉ-SHOW ===== -->
-<div id="preshowModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:flex;align-items:center;justify-content:center">
+<div id="preshowModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="preshowTitle" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:flex;align-items:center;justify-content:center">
   <div style="width:460px;max-width:94vw;max-height:84vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:24px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="font-size:17px;font-weight:800">🎬 Checklist pré-show</div>
-      <button id="preshowClose" class="iconBtn">✕ Fechar</button>
+      <div id="preshowTitle" style="font-size:17px;font-weight:800">🎬 Checklist pré-show</div>
+      <button id="preshowClose" class="iconBtn" aria-label="Fechar checklist">✕ Fechar</button>
     </div>
     <div id="preshowBody" style="font-size:13.5px;line-height:2"></div>
     <div style="margin-top:14px;display:flex;gap:8px">
@@ -382,6 +576,7 @@ function setAuthMode(m) {
 $('tabLogin').onclick = () => setAuthMode('login');
 $('tabSignup').onclick = () => setAuthMode('signup');
 $('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('authBtn').click(); });
+$('authEmail').addEventListener('keydown', e => { if (e.key === 'Enter') $('authBtn').click(); });
 
 $('authBtn').onclick = async () => {
   const email = $('authEmail').value.trim(), pass = $('authPass').value;
@@ -437,7 +632,10 @@ async function loadShows() {
     el.className = 'showItem';
     el.innerHTML = '<span style="font-size:20px">🎭</span><span class="nm">' + esc(s.name) + '</span>' +
       '<span class="dt">' + new Date(s.updated_at).toLocaleDateString('pt-BR') + '</span>' +
-      '<button class="iconBtn dup" title="Duplicar espetáculo">📄</button><button class="iconBtn rn">✏️</button><button class="iconBtn del">🗑</button>';
+      '<button class="iconBtn dup" title="Duplicar espetáculo" aria-label="Duplicar espetáculo">📄</button><button class="iconBtn rn" title="Renomear" aria-label="Renomear espetáculo">✏️</button><button class="iconBtn del" title="Excluir" aria-label="Excluir espetáculo">🗑</button>';
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.addEventListener('keydown', ev => { if (ev.key === 'Enter') openShow(s.id); });
     el.querySelector('.dup').onclick = async ev => {
       ev.stopPropagation();
       const { data: full, error } = await sb.from('stagecue_shows').select('*').eq('id', s.id).single();
@@ -591,10 +789,12 @@ function audioTimer(sec, cb) {
   src.start(); src.stop(ctx.currentTime + Math.max(0.001, sec));
   return { cancel: () => { src.onended = null; try { src.stop(); } catch (e) {} try { g.disconnect(); } catch (e) {} } };
 }
-function addWait(sec, cb) {
+function addWait(sec, cb, label) {
   const id = uuid();
-  const t = audioTimer(sec, () => { pendingWaits.delete(id); cb(); });
+  const t = audioTimer(sec, () => { pendingWaits.delete(id); renderTransport(); cb(); });
+  t.label = label || '';
   pendingWaits.set(id, t);
+  if (label) renderTransport();
 }
 
 // curvas de fade: 'log' (suave, natural), 'linear', 'scurve'
@@ -648,7 +848,7 @@ async function preloadAll() {
 function playCue(cue, opts) {
   if (cue.type !== 'audio' || !cue.fileKey) return;
   opts = opts || {};
-  if (cue.preWait > 0 && !opts.resumeOf) addWait(cue.preWait, () => startAudioInstance(cue, opts));
+  if (cue.preWait > 0 && !opts.resumeOf) addWait(cue.preWait, () => startAudioInstance(cue, opts), '⏳ ' + cue.number);
   else startAudioInstance(cue, opts);
 }
 
@@ -703,11 +903,18 @@ async function startAudioInstance(cue, opts) {
   if (cue.loop) { src.loopStart = startAt; src.loopEnd = endAt; src.start(now, startAt + (playedBuf % regionDur)); }
   else src.start(now, startAt + playedBuf, remainBuf);
 
-  // fade-out programado no fim (se não for loop)
+  // fade-out programado no fim (se não for loop); nunca sobrepor a curva do fade-in
   const fadeOut = Math.max(0, cue.fadeOut || 0);
   if (!cue.loop && fadeOut > 0 && fadeOut < remainWall) {
-    gain.gain.setValueAtTime(Math.max(vol, 0.0001), now + remainWall - fadeOut);
-    scheduleRamp(gain.gain, Math.max(vol, 0.0001), 0.0001, now + remainWall - fadeOut, fadeOut, curve);
+    const fiEnd = (fadeIn > 0 && !resume && !opts.offset) ? now + fadeIn + 0.03 : now;
+    const foStart = Math.max(now + remainWall - fadeOut, fiEnd);
+    const foDur = now + remainWall - foStart;
+    if (foDur > 0.05) {
+      try {
+        gain.gain.setValueAtTime(Math.max(vol, 0.0001), foStart);
+        scheduleRamp(gain.gain, Math.max(vol, 0.0001), 0.0001, foStart, foDur, curve);
+      } catch (e) { /* agendamento conflitante nunca deve impedir o cue de tocar */ }
+    }
   }
 
   const inst = resume || { id: uuid(), cue };
@@ -799,6 +1006,7 @@ function togglePause() {
   if (paused) actx.suspend(); else actx.resume();
   $('pauseBtn').classList.toggle('on', paused);
   $('pauseBtn').textContent = paused ? '▶ RETOMAR' : '⏸ PAUSA';
+  document.body.classList.toggle('paused', paused);
 }
 
 // ============ GO ============
@@ -921,8 +1129,8 @@ function renderCueList() {
       '<td class="cueWait">' + (c.preWait ? fmtT(c.preWait) : '') + '</td>' +
       '<td class="cueDur">' + (c.type === 'audio' ? (c.loop ? '∞ loop' : fmtT(dur)) : '') + '</td>' +
       '<td class="cueFollow">' + (c.follow !== 'none' ? '⤵' : '') + '</td>';
-    tr.onclick = () => { selectedId = c.id; if (editMode) renderAll(); else { standbyIdx = i; renderAll(); } };
-    tr.ondblclick = () => { standbyIdx = i; renderAll(); };
+    tr.onclick = () => { if (editMode) { selectedId = c.id; renderAll(); } };
+    tr.ondblclick = () => { standbyIdx = i; renderAll(); toast('⏩ Standby no cue ' + c.number); };
     // arrastar para reordenar (modo edição)
     tr.draggable = editMode;
     tr.addEventListener('dragstart', () => { dragIdx = i; });
@@ -940,6 +1148,10 @@ function renderCueList() {
     });
     tb.appendChild(tr);
   });
+  if (!editMode) {
+    const sbRow = tb.querySelector('tr.cue.standby');
+    if (sbRow) sbRow.scrollIntoView({ block: 'center' });
+  }
   renderCueRowsState();
 }
 
@@ -958,6 +1170,12 @@ function renderTransport() {
   const nx = cues[standbyIdx + 1];
   $('nextName').textContent = nx ? 'depois: ' + nx.number + ' · ' + (nx.name || '') : '';
   const pn = $('playingNow'); pn.innerHTML = '';
+  for (const w of pendingWaits.values()) if (w.label) {
+    const wc = document.createElement('span');
+    wc.className = 'playChip waiting';
+    wc.textContent = w.label + ' pré-espera…';
+    pn.appendChild(wc);
+  }
   for (const inst of instances.values()) {
     const chip = document.createElement('span');
     chip.className = 'playChip' + (inst.paused ? ' paused' : '');
@@ -982,9 +1200,11 @@ setInterval(() => {
     const s = Math.floor((Date.now() - showStartAt) / 1000);
     $('showTimer').textContent = String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
   }
+  $('showTimer').classList.toggle('running', showStartAt != null);
 }, 500);
 
 function tick() {
+  let minRemain = null;
   if (actx && instances.size) {
     for (const inst of instances.values()) {
       const pos = inst.paused ? inst.pausedPos : instPos(inst);
@@ -996,8 +1216,14 @@ function tick() {
       const remain = (inst.regionDur - pos) / inst.rate;
       if (chip) chip.textContent = inst.loop ? fmtT(pos / inst.rate) + ' ∞' : '−' + fmtT(remain);
       if (chipEl && !inst.loop && !inst.paused) chipEl.classList.toggle('ending', remain <= 10);
+      if (!inst.loop && !inst.paused && (minRemain == null || remain < minRemain)) minRemain = remain;
       if (selectedId === inst.cue.id) drawWavePlayhead(frac);
     }
+  }
+  const br = $('bigRemain');
+  if (br) {
+    br.textContent = minRemain != null ? '−' + fmtT(minRemain) : '';
+    br.classList.toggle('ending', minRemain != null && minRemain <= 10);
   }
   requestAnimationFrame(tick);
 }
@@ -1025,36 +1251,46 @@ function renderInspector() {
   html += '<label>Nome</label><input data-f="name" value="' + esc(c.name) + '">';
 
   if (c.type === 'audio') {
+    html += '<div class="inspSec"><h4>📁 Arquivo & recorte</h4>';
     html += '<label>Arquivo de áudio</label><select data-f="fileKey"><option value="">— escolher —</option>' +
       show.data.files.map(f => '<option value="' + esc(f.key) + '"' + (f.key === c.fileKey ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('') + '</select>';
-    html += '<canvas id="waveCv" width="600" height="168"></canvas>';
-    html += '<div class="waveHint">arraste as bordas verdes na forma de onda para recortar início/fim</div>';
-    html += '<label>Volume <span class="dbVal" id="volLbl">' + (c.volumeDb || 0).toFixed(1) + ' dB</span></label><input type="range" data-f="volumeDb" min="-60" max="12" step="0.5" value="' + (c.volumeDb || 0) + '">';
-    html += '<label>Pan (E ← → D)</label><input type="range" data-f="pan" min="-1" max="1" step="0.05" value="' + (c.pan || 0) + '">';
+    html += '<canvas id="waveCv" width="600" height="168" role="img" aria-label="Forma de onda com recorte"></canvas>';
+    html += '<div class="waveHint">arraste as bordas verdes para recortar · clique no meio para ouvir dali</div>';
+    html += '<div class="row2"><div><label>Início (s)</label><input type="number" data-f="startAt" min="0" step="0.1" value="' + (c.startAt || 0) + '"></div>' +
+            '<div><label>Fim (s)</label><input type="number" data-f="endAt" min="0" step="0.1" value="' + (c.endAt || '') + '" placeholder="fim"></div></div>';
+    html += '<div class="checkRow"><input type="checkbox" id="loopChk" data-f="loop"' + (c.loop ? ' checked' : '') + '><label for="loopChk">Loop infinito</label></div>';
+    html += '<label>Velocidade (%)</label><input type="number" data-f="ratePct" min="25" max="400" step="5" value="' + Math.round((c.rate || 1) * 100) + '">';
+    html += '</div>';
+    html += '<div class="inspSec"><h4>🎚 Som</h4>';
+    html += '<label>Volume <span class="dbVal" id="volLbl">' + (c.volumeDb || 0).toFixed(1) + ' dB</span></label><input type="range" data-f="volumeDb" min="-60" max="12" step="0.5" value="' + (c.volumeDb || 0) + '" aria-label="Volume do cue">';
+    html += '<label>Pan (E ← → D)</label><input type="range" data-f="pan" min="-1" max="1" step="0.05" value="' + (c.pan || 0) + '" aria-label="Pan">';
+    html += '<div class="row2"><div><label>Grave (dB)</label><input type="number" data-f="bassDb" min="-15" max="15" step="1" value="' + (c.bassDb || 0) + '"></div>' +
+            '<div><label>Agudo (dB)</label><input type="number" data-f="trebleDb" min="-15" max="15" step="1" value="' + (c.trebleDb || 0) + '"></div></div>';
+    html += '<label>Abaixar outros cues (dB)</label><input type="number" data-f="duckDb" min="0" max="40" step="1" value="' + (c.duckDb || 0) + '" title="Ducking: enquanto este cue toca, os demais abaixam">';
+    html += '</div>';
+    html += '<div class="inspSec"><h4>📉 Fades</h4>';
     html += '<div class="row2"><div><label>Fade in (s)</label><input type="number" data-f="fadeIn" min="0" step="0.1" value="' + (c.fadeIn || 0) + '"></div>' +
             '<div><label>Fade out (s)</label><input type="number" data-f="fadeOut" min="0" step="0.1" value="' + (c.fadeOut || 0) + '"></div></div>';
     html += '<label>Curva dos fades</label>' + curveSel('fadeCurve', c.fadeCurve);
-    html += '<div class="row2"><div><label>Início (s)</label><input type="number" data-f="startAt" min="0" step="0.1" value="' + (c.startAt || 0) + '"></div>' +
-            '<div><label>Fim (s)</label><input type="number" data-f="endAt" min="0" step="0.1" value="' + (c.endAt || '') + '" placeholder="fim"></div></div>';
-    html += '<div class="row2"><div><label>Velocidade (%)</label><input type="number" data-f="ratePct" min="25" max="400" step="5" value="' + Math.round((c.rate || 1) * 100) + '"></div>' +
-            '<div><label>Abaixar outros (dB)</label><input type="number" data-f="duckDb" min="0" max="40" step="1" value="' + (c.duckDb || 0) + '" title="Ducking: enquanto este cue toca, os demais abaixam"></div></div>';
-    html += '<div class="row2"><div><label>Grave (dB)</label><input type="number" data-f="bassDb" min="-15" max="15" step="1" value="' + (c.bassDb || 0) + '"></div>' +
-            '<div><label>Agudo (dB)</label><input type="number" data-f="trebleDb" min="-15" max="15" step="1" value="' + (c.trebleDb || 0) + '"></div></div>';
-    html += '<div class="checkRow"><input type="checkbox" id="loopChk" data-f="loop"' + (c.loop ? ' checked' : '') + '><label for="loopChk">Loop infinito</label></div>';
-    html += '<div style="margin-top:12px;display:flex;gap:8px"><button id="testBtn">▶ Testar</button><button id="testStop">⏹</button></div>';
+    html += '</div>';
   }
   if (c.type === 'fade') {
+    html += '<div class="inspSec"><h4>📉 Alvo & fade</h4>';
     html += '<label>Cue alvo (nº — vazio = todos)</label><input data-f="targetNumber" value="' + esc(c.targetNumber || '') + '" placeholder="todos">';
     html += '<div class="row2"><div><label>Duração (s)</label><input type="number" data-f="fadeTime" min="0.1" step="0.1" value="' + c.fadeTime + '"></div>' +
             '<div><label>Nível alvo (dB)</label><input type="number" data-f="targetDb" max="12" step="1" value="' + c.targetDb + '"' + (c.stopAfter ? ' disabled' : '') + '></div></div>';
     html += '<label>Curva</label>' + curveSel('curve', c.curve);
     html += '<div class="checkRow"><input type="checkbox" id="stopAfterChk" data-f="stopAfter"' + (c.stopAfter ? ' checked' : '') + '><label for="stopAfterChk">Parar ao fim do fade</label></div>';
+    html += '</div>';
   }
   if (c.type === 'stop') {
+    html += '<div class="inspSec"><h4>⏹ Alvo da parada</h4>';
     html += '<label>Cue alvo (nº — vazio = todos)</label><input data-f="stopTarget" value="' + esc(c.stopTarget || '') + '" placeholder="todos">';
     html += '<label>Fade de saída (s)</label><input type="number" data-f="stopFade" min="0" step="0.1" value="' + (c.stopFade || 0) + '">';
+    html += '</div>';
   }
 
+  html += '<div class="inspSec"><h4>⏱ Disparo & sequência</h4>';
   html += '<label>Pré-espera (s) — atraso após o GO</label><input type="number" data-f="preWait" min="0" step="0.1" value="' + (c.preWait || 0) + '">';
   html += '<label>Continuação automática</label><select data-f="follow">' +
     '<option value="none"' + (c.follow === 'none' ? ' selected' : '') + '>Nenhuma (aguarda GO)</option>' +
@@ -1062,7 +1298,11 @@ function renderInspector() {
     (c.type === 'audio' ? '<option value="end"' + (c.follow === 'end' ? ' selected' : '') + '>Dispara o próximo quando este terminar</option>' : '') +
     '</select>';
   if (c.follow === 'after') html += '<label>X segundos</label><input type="number" data-f="followDelay" min="0" step="0.1" value="' + (c.followDelay || 0) + '">';
-  html += '<label>Anotações do operador</label><textarea data-f="notes" rows="3">' + esc(c.notes || '') + '</textarea>';
+  html += '</div>';
+  html += '<div class="inspSec"><h4>📝 Deixa</h4>';
+  html += '<label>Deixa / anotação (aparece no rodapé quando este cue está em standby)</label><textarea data-f="notes" rows="3">' + esc(c.notes || '') + '</textarea>';
+  html += '</div>';
+  if (c.type === 'audio') html += '<div class="inspTest"><button id="testBtn">▶ Testar</button><button id="testStop" title="Parar teste" aria-label="Parar teste">⏹</button></div>';
   el.innerHTML = html;
 
   el.querySelectorAll('[data-f]').forEach(inp => {
@@ -1111,10 +1351,10 @@ let wavePeaks = null;
 async function drawWaveform(cue) {
   const cv = $('waveCv'); if (!cv) return;
   const g = cv.getContext('2d');
-  g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#05070b'; g.fillRect(0, 0, cv.width, cv.height);
   wavePeaks = null;
   if (!cue.fileKey) return;
-  g.fillStyle = '#334155'; g.font = '12px sans-serif'; g.fillText('carregando forma de onda…', 10, 20);
+  g.fillStyle = '#7d8794'; g.font = '12px sans-serif'; g.fillText('carregando forma de onda…', 10, 20);
   let buf; try { buf = await getBuffer(cue.fileKey); } catch (e) { return; }
   const W = cv.width, ch = buf.getChannelData(0), step = Math.ceil(ch.length / W);
   const peaks = [];
@@ -1139,7 +1379,7 @@ function paintWave(playFrac) {
   const cv = $('waveCv'); if (!cv || !wavePeaks) return;
   const g = cv.getContext('2d'), W = cv.width, H = cv.height, { peaks } = wavePeaks;
   const { s, e } = wavePixels();
-  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#05070b'; g.fillRect(0, 0, W, H);
   g.fillStyle = '#111827'; g.fillRect(0, 0, s, H); g.fillRect(e, 0, W - e, H);
   for (let i = 0; i < W; i++) {
     const h = Math.max(1, peaks[i] * (H - 8));
@@ -1215,7 +1455,7 @@ function drawMeter() {
     const frac = Math.max(0, Math.min(1, (db + 60) / 66));
     if (pk >= peakHold || Date.now() - peakT > 1200) { peakHold = pk; peakT = Date.now(); }
     const W = cv.width, H = cv.height;
-    g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#05070b'; g.fillRect(0, 0, W, H);
     const grad = g.createLinearGradient(0, 0, W, 0);
     grad.addColorStop(0, '#166534'); grad.addColorStop(0.72, '#22c55e'); grad.addColorStop(0.88, '#f59e0b'); grad.addColorStop(1, '#ef4444');
     g.fillStyle = grad; g.fillRect(0, 6, W * frac, H - 12);
@@ -1269,7 +1509,7 @@ function renderFileList(container) {
     const el = document.createElement('div');
     el.className = 'fileItem';
     el.innerHTML = '<span>🎵</span><span class="fn" title="' + esc(f.name) + '">' + esc(f.name) + '</span>' +
-      '<span style="color:var(--tx3)">' + (f.duration ? fmtT(f.duration) : '') + '</span><button class="rm">✕</button>';
+      '<span style="color:var(--tx3)">' + (f.duration ? fmtT(f.duration) : '') + '</span><button class="rm" title="Remover da biblioteca" aria-label="Remover arquivo">🗑</button>';
     el.querySelector('.rm').onclick = async () => {
       if (!confirm('Remover "' + f.name + '" da biblioteca?')) return;
       pushUndo();
@@ -1311,7 +1551,7 @@ $('fileInput').onchange = async () => {
 };
 
 // ============ CHECKLIST PRÉ-SHOW ============
-$('preshowBtn').onclick = () => { $('preshowModal').classList.remove('hidden'); renderPreshow(); };
+$('preshowBtn').onclick = () => { $('preshowModal').classList.remove('hidden'); renderPreshow(); setTimeout(() => $('preshowClose').focus(), 60); };
 $('preshowClose').onclick = () => $('preshowModal').classList.add('hidden');
 $('preshowExport').onclick = () => { $('exportBtn').onclick(); setTimeout(renderPreshow, 300); };
 $('toneBtn').onclick = () => {
@@ -1346,6 +1586,7 @@ async function renderPreshow() {
     line(comArquivo.length === 0 ? 'warn' : decoded === comArquivo.length, 'Áudios carregados na memória: <b>' + decoded + '/' + comArquivo.length + '</b>' + (decoded < comArquivo.length ? ' — reabra o espetáculo ou aguarde' : '')) +
     line(semArquivo.length === 0, semArquivo.length ? 'Cues de áudio <b>sem arquivo</b>: ' + semArquivo.map(c => esc(c.number)).join(', ') : 'Todos os cues de áudio têm arquivo') +
     line(true, 'Saída de áudio: <b>' + esc(sinkTxt) + '</b> — use o tom de teste abaixo') +
+    line(show.data.masterDb > -20 ? true : 'warn', 'Master em <b>' + show.data.masterDb.toFixed(1) + ' dB</b>' + (show.data.masterDb <= -20 ? ' — muito baixo!' : '')) +
     line(!!wakeLock || !('wakeLock' in navigator && document.visibilityState === 'visible') ? true : 'warn', ('wakeLock' in navigator) ? (wakeLock ? 'Tela travada acesa durante o show' : 'Tela acesa: será ativada ao operar') : 'Navegador sem trava de tela — desative a suspensão no sistema') +
     line(navigator.onLine ? true : 'warn', navigator.onLine ? 'Internet conectada' : 'Sem internet — ok se todos os áudios estiverem em cache') +
     line(expOk ? true : 'warn', expOk ? 'Backup exportado há menos de 24h' : 'Backup: exporte uma cópia antes da sessão') +
@@ -1355,10 +1596,12 @@ async function renderPreshow() {
 // ============ MODO / TECLADO ============
 function setEditMode(on) {
   editMode = on;
-  $('modeBtn').textContent = on ? '✏️ Edição' : '🎚 Operação';
+  $('modeBtn').textContent = on ? '🎚 Ir para Operação' : '✏️ Ir para Edição';
   $('modeBtn').classList.toggle('on', !on);
+  $('opScreen').classList.toggle('opmode', !on);
   $('editToolbar').style.display = on ? 'flex' : 'none';
   $('inspector').style.display = on ? 'block' : 'none';
+  renderCueList();
 }
 $('modeBtn').onclick = () => setEditMode(!editMode);
 
@@ -1369,15 +1612,22 @@ function fadeAllOut() {
   fadeInstances(null, 3, null, true, 'log');
   toast('📉 Fade geral: descendo tudo em 3s');
 }
+let lastPanicT = 0;
 function panic() {
-  stopAll(0); // corte imediato
-  toast('🛑 Pânico: tudo parado');
+  const hard = Date.now() - lastPanicT < 1500;
+  lastPanicT = Date.now();
+  stopAll(hard ? 0 : 0.15);
+  toast(hard ? '🛑 Pânico: corte seco' : '🛑 Pânico — tudo parado', 'err');
 }
 $('fadeBtn').onclick = fadeAllOut;
 $('panicBtn').onclick = panic;
 
 document.addEventListener('keydown', e => {
   if ($('opScreen').classList.contains('hidden')) return;
+  if (!$('preshowModal').classList.contains('hidden')) {
+    if (e.key === 'Escape') { e.preventDefault(); $('preshowModal').classList.add('hidden'); $('preshowBtn').focus(); }
+    return;
+  }
   const tag = (document.activeElement || {}).tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
     if (e.key === 'Escape') document.activeElement.blur();
@@ -1432,9 +1682,10 @@ window.addEventListener('beforeunload', e => {
 });
 
 let toastT = null;
-function toast(msg) {
+function toast(msg, kind) {
   let el = document.querySelector('.toast');
-  if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+  if (!el) { el = document.createElement('div'); document.body.appendChild(el); }
+  el.className = 'toast' + (kind ? ' ' + kind : '');
   el.textContent = msg;
   clearTimeout(toastT);
   toastT = setTimeout(() => el.remove(), 3200);

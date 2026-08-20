@@ -33,7 +33,7 @@ const SHOW = {
     files: [{ key: `${USER_ID}/show-1/aaaa_teste.wav`, name: "teste.wav", size: WAV.length, duration: 0.5 }],
     cues: [
       { id: "c1", type: "audio", number: "1", name: "Abertura", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "esperar blackout",
-        fileKey: `${USER_ID}/show-1/aaaa_teste.wav`, fileName: "teste.wav", volumeDb: 0, pan: 0, loop: false, fadeIn: 0, fadeOut: 0, startAt: 0, endAt: null },
+        fileKey: `${USER_ID}/show-1/aaaa_teste.wav`, fileName: "teste.wav", volumeDb: 0, pan: 0, loop: false, fadeIn: 0.2, fadeOut: 0.4, startAt: 0, endAt: null },
       { id: "c2", type: "note", number: "2", name: "Deixa do ator", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "" },
       { id: "c3", type: "stop", number: "3", name: "Parar tudo", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "", stopTarget: "", stopFade: 0.2 },
     ],
@@ -60,6 +60,10 @@ await page.addInitScript(() => {
   window.prompt = () => "Peça Teste";
   window.confirm = () => true;
 });
+
+// mock das fontes (sem rede no ambiente de teste)
+await page.route("**fonts.googleapis.com/**", r => r.fulfill({ contentType: "text/css", body: "" }));
+await page.route("**fonts.gstatic.com/**", r => r.fulfill({ status: 404, body: "" }));
 
 // mock do CDN (supabase-js)
 await page.route("**cdn.jsdelivr.net/**", r =>
