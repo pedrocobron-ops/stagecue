@@ -166,9 +166,16 @@ await page.waitForTimeout(200);
 await page.click("#testBtn");
 await page.waitForTimeout(400);
 check("cue em loop fica tocando", await page.locator(".playChip").count() >= 1);
+await page.click("#fadeBtn");
+await page.waitForTimeout(1000);
+check("FADE geral: ainda descendo após 1s", await page.locator(".playChip").count() >= 1);
+await page.waitForTimeout(2700);
+check("FADE geral: tudo parado ao fim dos 3s", await page.locator(".playChip").count() === 0);
+await page.click("#testBtn");
+await page.waitForTimeout(400);
 await page.keyboard.press("Escape"); // pânico
-await page.waitForTimeout(1600);
-check("PÂNICO (Esc) para tudo com fade", await page.locator(".playChip").count() === 0);
+await page.waitForTimeout(350);
+check("PÂNICO (Esc) para tudo imediatamente", await page.locator(".playChip").count() === 0);
 
 // ---------- 8b. pausa/retomada por cue ----------
 await page.click("#testBtn"); // cue 1 ainda está em loop
