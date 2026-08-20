@@ -1,5 +1,5 @@
 // GERADO por scripts/build.mjs
-const CACHE = 'stagecue-1wr82y5';
+const CACHE = 'stagecue-1evvjp7';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
