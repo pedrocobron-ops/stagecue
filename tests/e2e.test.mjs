@@ -1,0 +1,190 @@
+// Teste E2E do StageCue: interface real no Chromium, backend Supabase simulado.
+// Como rodar:
+//   node scripts/build.mjs
+//   cd tests && npm init -y && npm i playwright @supabase/supabase-js && npx playwright install chromium
+//   node e2e.test.mjs
+import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+import http from "node:http";
+
+const DIST = new URL("../dist/index.html", import.meta.url).pathname;
+const UMD = new URL("./node_modules/@supabase/supabase-js/dist/umd/supabase.js", import.meta.url).pathname;
+const USER_ID = "5c11e528-e5ca-4484-af73-7c330348214c";
+
+// ---- WAV de teste: 0,5s de senoide 440Hz, PCM16 mono 8kHz ----
+function makeWav() {
+  const sr = 8000, n = sr / 2;
+  const data = Buffer.alloc(n * 2);
+  for (let i = 0; i < n; i++) data.writeInt16LE(Math.round(Math.sin(2 * Math.PI * 440 * i / sr) * 12000), i * 2);
+  const h = Buffer.alloc(44);
+  h.write("RIFF", 0); h.writeUInt32LE(36 + data.length, 4); h.write("WAVEfmt ", 8);
+  h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22);
+  h.writeUInt32LE(sr, 24); h.writeUInt32LE(sr * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34);
+  h.write("data", 36); h.writeUInt32LE(data.length, 40);
+  return Buffer.concat([h, data]);
+}
+const WAV = makeWav();
+
+const SHOW = {
+  id: "show-1", user_id: USER_ID, name: "Peça Teste",
+  created_at: "2026-08-20T10:00:00Z", updated_at: "2026-08-20T10:00:00Z",
+  data: {
+    masterDb: 0,
+    files: [{ key: `${USER_ID}/show-1/aaaa_teste.wav`, name: "teste.wav", size: WAV.length, duration: 0.5 }],
+    cues: [
+      { id: "c1", type: "audio", number: "1", name: "Abertura", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "",
+        fileKey: `${USER_ID}/show-1/aaaa_teste.wav`, fileName: "teste.wav", volumeDb: 0, pan: 0, loop: false, fadeIn: 0, fadeOut: 0, startAt: 0, endAt: null },
+      { id: "c2", type: "note", number: "2", name: "Deixa do ator", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "" },
+      { id: "c3", type: "stop", number: "3", name: "Parar tudo", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "", stopTarget: "", stopFade: 0.2 },
+    ],
+  },
+};
+
+const results = [];
+const check = (name, ok, extra = "") => { results.push({ name, ok, extra }); console.log(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`); };
+
+// servidor local para a página
+const server = http.createServer((req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.end(readFileSync(DIST));
+}).listen(8931);
+
+const browser = await chromium.launch({
+  args: ["--autoplay-policy=no-user-gesture-required", "--no-sandbox"],
+});
+const page = await browser.newPage();
+page.on("pageerror", e => check("sem erros de JS na página", false, String(e)));
+
+// prompts do app
+await page.addInitScript(() => {
+  window.prompt = () => "Peça Teste";
+  window.confirm = () => true;
+});
+
+// mock do CDN (supabase-js)
+await page.route("**cdn.jsdelivr.net/**", r =>
+  r.fulfill({ contentType: "application/javascript", body: readFileSync(UMD) }));
+
+// mock da API Supabase
+let signupCalled = false, patchCount = 0;
+await page.route("**wriwfpqdovcccdggektm.supabase.co/**", async r => {
+  const url = new URL(r.request().url());
+  const m = r.request().method();
+  const p = url.pathname;
+  const json = (body, status = 200) => r.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+
+  if (m === "OPTIONS") return r.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+  if (p.endsWith("/stagecue/signup")) { signupCalled = true; return json({ ok: true }); }
+  if (p.includes("/auth/v1/token")) {
+    return json({ access_token: "fake.jwt.token", token_type: "bearer", expires_in: 3600,
+      expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: "fake-refresh",
+      user: { id: USER_ID, aud: "authenticated", role: "authenticated", email: "teste@exemplo.com",
+        email_confirmed_at: "2026-08-20T10:00:00Z", created_at: "2026-08-20T10:00:00Z",
+        updated_at: "2026-08-20T10:00:00Z", app_metadata: {}, user_metadata: { name: "Teste" } } });
+  }
+  if (p.includes("/auth/v1/")) return json({});
+  if (p.includes("/rest/v1/stagecue_shows")) {
+    if (m === "POST") return json({ id: "show-1" }, 201);
+    if (m === "PATCH") { patchCount++; return json([]); }
+    if (url.searchParams.get("id")?.startsWith("eq.") || (url.searchParams.get("select") === "*")) return json(SHOW);
+    return json([{ id: "show-1", name: "Peça Teste", updated_at: "2026-08-20T10:00:00Z" }]);
+  }
+  if (p.includes("/storage/v1/object")) {
+    if (m === "GET" || m === "POST") return r.fulfill({ status: 200, contentType: "audio/wav", body: WAV });
+    return json({ Key: "ok" });
+  }
+  return json({});
+});
+
+// ---------- 1. tela de login ----------
+await page.goto("http://localhost:8931/");
+await page.waitForTimeout(600);
+check("página carrega e mostra a tela de login", await page.locator("#authScreen").isVisible());
+check("logo StageCue presente", (await page.locator(".logo").first().innerText()).includes("Stage"));
+
+// ---------- 2. validação de senha curta ----------
+await page.click("#tabSignup");
+await page.fill("#authName", "Teste");
+await page.fill("#authEmail", "teste@exemplo.com");
+await page.fill("#authPass", "curta");
+await page.click("#authBtn");
+await page.waitForTimeout(300);
+check("senha curta é recusada com aviso", (await page.locator("#authErr").innerText()).includes("8 caracteres"));
+
+// ---------- 3. cadastro + login ----------
+await page.fill("#authPass", "senha-segura-123");
+await page.click("#authBtn");
+await page.waitForSelector("#showsScreen:not(.hidden)", { timeout: 5000 });
+check("cadastro chama a API /signup", signupCalled);
+check("login entra na tela de espetáculos", await page.locator("#showsScreen").isVisible());
+await page.waitForTimeout(400);
+check("espetáculo listado", (await page.locator("#showsList").innerText()).includes("Peça Teste"));
+
+// ---------- 4. abrir espetáculo ----------
+await page.click(".showItem");
+await page.waitForSelector("#opScreen:not(.hidden)", { timeout: 5000 });
+check("abre a tela de operação", await page.locator("#opScreen").isVisible());
+await page.waitForTimeout(800); // preload dos áudios
+check("nome do espetáculo no topo", (await page.locator("#opShowName").innerText()) === "Peça Teste");
+check("3 cues na lista", await page.locator("tr.cue").count() === 3);
+check("cue 1 em standby", (await page.locator("#standbyName").innerText()).includes("Abertura"));
+
+// ---------- 5. inspector + waveform ----------
+await page.click("tr.cue >> nth=0");
+await page.waitForTimeout(700);
+check("inspector abre para o cue de áudio", await page.locator("#inspCue").isVisible());
+check("waveform desenhada", await page.evaluate(() => {
+  const cv = document.getElementById("waveCv");
+  if (!cv) return false;
+  const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+  for (let i = 0; i < d.length; i += 4) if (d[i] > 30 || d[i + 1] > 30) return true; // algum pixel não-preto
+  return false;
+}));
+
+// ---------- 6. GO: áudio toca de verdade ----------
+await page.keyboard.press("Space");
+await page.waitForTimeout(300);
+check("GO dispara o áudio (instância tocando)", await page.locator(".playChip").count() === 1);
+check("standby avança para o cue 2", (await page.locator("#standbyName").innerText()).includes("Deixa"));
+check("linha do cue marca 'tocando'", await page.locator("tr.cue.playing").count() === 1);
+const ctxState = await page.evaluate(() => !!window.AudioContext);
+check("Web Audio disponível no navegador", ctxState);
+await page.waitForTimeout(700); // áudio de 0,5s termina
+check("áudio termina sozinho e some da lista", await page.locator(".playChip").count() === 0);
+
+// ---------- 7. GO em nota + cue de parada ----------
+await page.keyboard.press("Space"); // nota (só avança)
+await page.waitForTimeout(200);
+check("nota avança standby para o cue 3", (await page.locator("#standbyName").innerText()).includes("Parar"));
+
+// ---------- 8. loop + pânico ----------
+// transforma o cue 1 em loop e toca de novo
+await page.click("tr.cue >> nth=0");
+await page.waitForTimeout(400);
+await page.check("#loopChk");
+await page.waitForTimeout(200);
+await page.click("#testBtn");
+await page.waitForTimeout(400);
+check("cue em loop fica tocando", await page.locator(".playChip").count() >= 1);
+await page.keyboard.press("Escape"); // pânico
+await page.waitForTimeout(1600);
+check("PÂNICO (Esc) para tudo com fade", await page.locator(".playChip").count() === 0);
+
+// ---------- 9. modo operação + autosave ----------
+await page.click("#modeBtn");
+await page.waitForTimeout(200);
+check("modo Operação esconde a edição", !(await page.locator("#editToolbar").isVisible()));
+await page.click("#modeBtn");
+check("autosave gravou alterações no servidor (PATCH)", patchCount > 0, `${patchCount} gravações`);
+
+// ---------- 10. teclas de navegação ----------
+await page.keyboard.press("ArrowUp");
+await page.waitForTimeout(150);
+check("setas movem o standby", (await page.locator("#standbyName").innerText()).includes("Deixa"));
+
+await browser.close();
+server.close();
+
+const fail = results.filter(r => !r.ok);
+console.log(`\n===== ${results.length - fail.length}/${results.length} testes aprovados =====`);
+process.exit(fail.length ? 1 : 0);
