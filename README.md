@@ -4,7 +4,7 @@ Sistema profissional de operação de som para teatro, **100% web**: acesse de
 qualquer computador com login e senha, monte a lista de cues do espetáculo,
 suba seus áudios para a nuvem e opere o show com o botão **GO**.
 
-**Acesso online:** https://wriwfpqdovcccdggektm.supabase.co/functions/v1/stagecue
+**Acesso online:** https://pedrocobron-ops.github.io/stagecue/
 
 ## Por que o StageCue?
 
@@ -48,8 +48,8 @@ guarda tudo na nuvem: seu espetáculo te acompanha em qualquer cabine.
 
 | Camada | Tecnologia |
 |---|---|
-| Front-end | HTML/CSS/JS puro + Web Audio API (arquivo único, `app.html`) |
-| Hospedagem + API | Supabase Edge Function `stagecue` (serve o app e o endpoint `/signup`) |
+| Front-end | HTML/CSS/JS puro + Web Audio API (arquivo único, `app.html`), hospedado no GitHub Pages |
+| API de cadastro | Supabase Edge Function `stagecue` (endpoint `/signup`; GET redireciona ao app) |
 | Autenticação | Supabase Auth (e-mail/senha, contas criadas já confirmadas) |
 | Banco | Postgres — tabela `stagecue_shows` (cues em JSONB) com RLS por usuário |
 | Arquivos | Supabase Storage — bucket privado `stagecue-audio` com RLS por pasta do usuário |
@@ -58,19 +58,21 @@ guarda tudo na nuvem: seu espetáculo te acompanha em qualquer cabine.
 supabase/
   migrations/stagecue_init.sql      # tabela, bucket e políticas RLS
   functions/stagecue/
-    index.ts                        # edge function (serve app + /signup)
+    index.ts                        # edge function (/signup + redirect)
     app.html                        # o aplicativo (edite este)
-    html.ts                         # GERADO a partir do app.html
 scripts/
-  build-html.mjs                    # gera html.ts a partir do app.html
+  build.mjs                         # gera dist/index.html (publicado no GitHub Pages)
+.github/workflows/pages.yml         # deploy automático no GitHub Pages a cada push
 ```
 
 ## Desenvolvimento
 
 1. Edite `supabase/functions/stagecue/app.html`
-2. Rode `node scripts/build-html.mjs` para regenerar `html.ts`
-3. Faça o deploy da função `stagecue` (Supabase CLI ou dashboard) com
-   `verify_jwt = false` (a página é pública; os dados são protegidos por Auth + RLS)
+2. Faça push — o GitHub Actions roda `node scripts/build.mjs` e publica no Pages
+3. A função `stagecue` (deploy com `verify_jwt = false`) só cuida do `/signup`;
+   os dados são protegidos por Auth + RLS. Obs.: o gateway do Supabase não
+   permite servir HTML de `*.supabase.co` (força `text/plain`), por isso o
+   app fica no GitHub Pages
 
 ## Atalhos de teclado
 

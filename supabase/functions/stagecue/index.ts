@@ -1,22 +1,25 @@
-// StageCue — edge function: serve o app e cadastra usuários (já confirmados)
+// StageCue — edge function: API de cadastro (+ redireciona GET para o app no GitHub Pages)
+// O HTML não é servido daqui: o gateway do Supabase força text/plain em *.supabase.co.
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { HTML } from "./html.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const APP_URL = "https://pedrocobron-ops.github.io/stagecue/";
 
-const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  { auth: { autoRefreshToken: false, persistSession: false } },
+);
 
-const PAGE = HTML
-  .replace("__SUPABASE_URL__", SUPABASE_URL)
-  .replace("__SUPABASE_ANON_KEY__", ANON_KEY);
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "content-type",
+};
 
 Deno.serve(async (req: Request) => {
-  const url = new URL(req.url);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
+  const url = new URL(req.url);
   if (req.method === "POST" && url.pathname.endsWith("/signup")) {
     try {
       const { email, password, name } = await req.json();
@@ -44,17 +47,12 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  return new Response(PAGE, {
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-cache",
-    },
-  });
+  return new Response(null, { status: 302, headers: { Location: APP_URL } });
 });
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...CORS },
   });
 }
