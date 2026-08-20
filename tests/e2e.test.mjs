@@ -237,6 +237,28 @@ await page.keyboard.press("ArrowDown");
 await page.waitForTimeout(150);
 check("setas movem o standby", (await page.locator("#standbyName").innerText()).includes("Parar"));
 
+// ---------- 11. checklist pré-show ----------
+await page.click("#preshowBtn");
+await page.waitForTimeout(700);
+check("checklist pré-show abre", await page.locator("#preshowModal").isVisible());
+const psTxt = await page.locator("#preshowBody").innerText();
+check("checklist confere cache de áudios (1/1)", psTxt.includes("1/1"));
+await page.click("#toneBtn");
+await page.waitForTimeout(300);
+await page.click("#preshowClose");
+await page.waitForTimeout(200);
+check("checklist fecha", !(await page.locator("#preshowModal").isVisible()));
+check("manifest PWA declarado na página", await page.evaluate(() => !!document.querySelector('link[rel="manifest"]')));
+
+// ---------- 12. recuperação de sessão após recarregar ----------
+await page.reload();
+await page.waitForSelector("#showsScreen:not(.hidden)", { timeout: 8000 });
+await page.click(".showItem");
+await page.waitForSelector("#opScreen:not(.hidden)", { timeout: 8000 });
+await page.waitForTimeout(700);
+check("após recarregar, retoma o standby onde parou (não volta ao cue 1)",
+  !(await page.locator("#standbyName").innerText()).includes("Abertura"));
+
 await browser.close();
 server.close();
 

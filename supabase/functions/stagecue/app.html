@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0d10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>StageCue — Operação de Som para Teatro</title>
 <style>
   :root{
@@ -194,6 +198,7 @@
       <span class="dbVal" id="masterDb">0.0 dB</span>
       <canvas id="meterCv" width="160" height="52"></canvas>
     </div>
+    <button id="preshowBtn" title="Checklist antes de abrir a casa">🎬 Pré-show</button>
     <button id="modeBtn" class="modeBtn">✏️ Edição</button>
     <div class="saveState" id="saveState"></div>
   </div>
@@ -247,6 +252,21 @@
 <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" multiple class="hidden">
 <input type="file" id="importInput" accept=".json,application/json" class="hidden">
 
+<!-- ===== CHECKLIST PRÉ-SHOW ===== -->
+<div id="preshowModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;display:flex;align-items:center;justify-content:center">
+  <div style="width:460px;max-width:94vw;max-height:84vh;overflow-y:auto;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:17px;font-weight:800">🎬 Checklist pré-show</div>
+      <button id="preshowClose" class="iconBtn">✕ Fechar</button>
+    </div>
+    <div id="preshowBody" style="font-size:13.5px;line-height:2"></div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button id="toneBtn">🔉 Tom de teste (1s)</button>
+      <button id="preshowExport">💾 Exportar backup agora</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
@@ -297,6 +317,27 @@ async function idbGet(k) {
 }
 async function idbSet(k, v) { try { const db = await idb(); db.transaction('audio', 'readwrite').objectStore('audio').put(v, k); } catch (e) {} }
 async function idbDel(k) { try { const db = await idb(); db.transaction('audio', 'readwrite').objectStore('audio').delete(k); } catch (e) {} }
+
+// ============ TELA SEMPRE ACESA (wake lock) ============
+let wakeLock = null;
+async function holdWakeLock() {
+  try {
+    if ('wakeLock' in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
+  } catch (e) {}
+}
+function releaseWakeLock() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !$('opScreen').classList.contains('hidden')) holdWakeLock();
+});
+
+// estado de operação (recuperação após travar/recarregar)
+function saveOpState() {
+  if (!show) return;
+  lsSet('stagecue_state_' + show.id, { standbyIdx, showStartAt, ts: Date.now() });
+}
 
 // ============ DESFAZER ============
 const undoStack = [];
@@ -451,6 +492,16 @@ async function openShow(id) {
   lsSet('stagecue_show_' + show.id, show);
   undoStack.length = 0;
   selectedId = null; standbyIdx = 0; showStartAt = null;
+  // recuperação: se o navegador caiu/recarregou no meio do show, retoma de onde parou
+  const st = lsGet('stagecue_state_' + show.id);
+  if (st && st.standbyIdx > 0 && Date.now() - (st.ts || 0) < 6 * 3600 * 1000) {
+    const cueN = show.data.cues[Math.min(st.standbyIdx, show.data.cues.length - 1)];
+    if (confirm('Retomar o show de onde parou? (standby no cue ' + (cueN ? cueN.number : st.standbyIdx) + ')')) {
+      standbyIdx = Math.min(st.standbyIdx, show.data.cues.length);
+      showStartAt = st.showStartAt || null;
+    } else localStorage.removeItem('stagecue_state_' + show.id);
+  }
+  holdWakeLock();
   stopAll(0);
   buffers.clear();
   $('opShowName').textContent = show.name;
@@ -462,7 +513,7 @@ async function openShow(id) {
   renderAll();
   preloadAll();
 }
-$('backBtn').onclick = () => { stopAll(0.1); showScreen('shows'); loadShows(); };
+$('backBtn').onclick = () => { stopAll(0.1); releaseWakeLock(); showScreen('shows'); loadShows(); };
 
 function markDirty() {
   $('saveState').textContent = 'salvando…';
@@ -486,6 +537,7 @@ $('exportBtn').onclick = () => {
   a.download = show.name.replace(/[^\w\- ]+/g, '_') + '.stagecue.json';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  lsSet('stagecue_lastExport_' + show.id, Date.now());
   toast('💾 Backup baixado (os áudios ficam na nuvem/cache)');
 };
 
@@ -901,6 +953,7 @@ function renderTransport() {
     };
     pn.appendChild(chip);
   }
+  saveOpState();
 }
 
 // relógios + progresso + playhead
@@ -1220,6 +1273,48 @@ $('fileInput').onchange = async () => {
     toast('✓ ' + file.name + ' enviado');
   }
 };
+
+// ============ CHECKLIST PRÉ-SHOW ============
+$('preshowBtn').onclick = () => { $('preshowModal').classList.remove('hidden'); renderPreshow(); };
+$('preshowClose').onclick = () => $('preshowModal').classList.add('hidden');
+$('preshowExport').onclick = () => { $('exportBtn').onclick(); setTimeout(renderPreshow, 300); };
+$('toneBtn').onclick = () => {
+  const ctx = ensureCtx();
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.value = 440;
+  g.gain.setValueAtTime(0.0001, ctx.currentTime);
+  g.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.05);
+  g.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 1);
+  o.connect(g); g.connect(masterGain);
+  o.start(); o.stop(ctx.currentTime + 1.05);
+  toast('🔉 Tom de teste na saída selecionada');
+};
+
+async function renderPreshow() {
+  const b = $('preshowBody');
+  if (!show) return;
+  const files = show.data.files || [];
+  let cached = 0;
+  for (const f of files) { if (buffers.has(f.key) || await idbGet(f.key)) cached++; }
+  const audioCues = show.data.cues.filter(c => c.type === 'audio');
+  const comArquivo = audioCues.filter(c => c.fileKey);
+  const semArquivo = audioCues.filter(c => !c.fileKey);
+  let decoded = 0;
+  for (const c of comArquivo) { const v = buffers.get(c.fileKey); if (v && !(v instanceof Promise)) decoded++; }
+  const sinkTxt = $('sinkSel').selectedIndex > 0 ? $('sinkSel').options[$('sinkSel').selectedIndex].text : 'Saída padrão do sistema';
+  const lastExp = lsGet('stagecue_lastExport_' + show.id);
+  const expOk = lastExp && (Date.now() - lastExp < 24 * 3600 * 1000);
+  const line = (st, txt) => '<div>' + (st === true ? '✅' : st === 'warn' ? '⚠️' : '❌') + ' ' + txt + '</div>';
+  b.innerHTML =
+    line(files.length === 0 ? 'warn' : cached === files.length, 'Áudios no cache local (roda sem internet): <b>' + cached + '/' + files.length + '</b>') +
+    line(comArquivo.length === 0 ? 'warn' : decoded === comArquivo.length, 'Áudios carregados na memória: <b>' + decoded + '/' + comArquivo.length + '</b>' + (decoded < comArquivo.length ? ' — reabra o espetáculo ou aguarde' : '')) +
+    line(semArquivo.length === 0, semArquivo.length ? 'Cues de áudio <b>sem arquivo</b>: ' + semArquivo.map(c => esc(c.number)).join(', ') : 'Todos os cues de áudio têm arquivo') +
+    line(true, 'Saída de áudio: <b>' + esc(sinkTxt) + '</b> — use o tom de teste abaixo') +
+    line(!!wakeLock || !('wakeLock' in navigator && document.visibilityState === 'visible') ? true : 'warn', ('wakeLock' in navigator) ? (wakeLock ? 'Tela travada acesa durante o show' : 'Tela acesa: será ativada ao operar') : 'Navegador sem trava de tela — desative a suspensão no sistema') +
+    line(navigator.onLine ? true : 'warn', navigator.onLine ? 'Internet conectada' : 'Sem internet — ok se todos os áudios estiverem em cache') +
+    line(expOk ? true : 'warn', expOk ? 'Backup exportado há menos de 24h' : 'Backup: exporte uma cópia antes da sessão') +
+    line(editMode ? 'warn' : true, editMode ? 'Ainda em modo Edição — mude para Operação antes de abrir a casa' : 'Modo Operação ativado');
+}
 
 // ============ MODO / TECLADO ============
 function setEditMode(on) {
