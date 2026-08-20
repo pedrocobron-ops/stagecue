@@ -20,6 +20,11 @@
   button:disabled{opacity:.4;cursor:not-allowed}
   input,select,textarea{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
+    -webkit-text-fill-color:var(--tx);caret-color:var(--tx);
+    -webkit-box-shadow:0 0 0 1000px var(--bg) inset;box-shadow:0 0 0 1000px var(--bg) inset;
+    transition:background-color 99999s ease-in-out 0s}
+  input:autofill{-webkit-text-fill-color:var(--tx);box-shadow:0 0 0 1000px var(--bg) inset}
   label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:10px 0 4px}
   .hidden{display:none!important}
   .screen{position:fixed;inset:0;display:flex;flex-direction:column}
@@ -263,6 +268,7 @@ function setAuthMode(m) {
   $('tabSignup').classList.toggle('on', m === 'signup');
   $('signupNameWrap').classList.toggle('hidden', m === 'login');
   $('authBtn').textContent = m === 'login' ? 'Entrar' : 'Criar conta';
+  $('authPass').setAttribute('autocomplete', m === 'login' ? 'current-password' : 'new-password');
   $('authErr').textContent = '';
 }
 $('tabLogin').onclick = () => setAuthMode('login');
