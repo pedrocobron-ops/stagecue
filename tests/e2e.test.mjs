@@ -32,7 +32,7 @@ const SHOW = {
     masterDb: 0,
     files: [{ key: `${USER_ID}/show-1/aaaa_teste.wav`, name: "teste.wav", size: WAV.length, duration: 0.5 }],
     cues: [
-      { id: "c1", type: "audio", number: "1", name: "Abertura", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "",
+      { id: "c1", type: "audio", number: "1", name: "Abertura", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "esperar blackout",
         fileKey: `${USER_ID}/show-1/aaaa_teste.wav`, fileName: "teste.wav", volumeDb: 0, pan: 0, loop: false, fadeIn: 0, fadeOut: 0, startAt: 0, endAt: null },
       { id: "c2", type: "note", number: "2", name: "Deixa do ator", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "" },
       { id: "c3", type: "stop", number: "3", name: "Parar tudo", color: "", preWait: 0, follow: "none", followDelay: 0, notes: "", stopTarget: "", stopFade: 0.2 },
@@ -128,6 +128,7 @@ await page.waitForTimeout(800); // preload dos áudios
 check("nome do espetáculo no topo", (await page.locator("#opShowName").innerText()) === "Peça Teste");
 check("3 cues na lista", await page.locator("tr.cue").count() === 3);
 check("cue 1 em standby", (await page.locator("#standbyName").innerText()).includes("Abertura"));
+check("deixa do operador visível no rodapé", (await page.locator("#standbyNotes").innerText()).includes("esperar blackout"));
 
 // ---------- 5. inspector + waveform ----------
 await page.click("tr.cue >> nth=0");
@@ -145,6 +146,7 @@ check("waveform desenhada", await page.evaluate(() => {
 await page.keyboard.press("Space");
 await page.waitForTimeout(300);
 check("GO dispara o áudio (instância tocando)", await page.locator(".playChip").count() === 1);
+check("chip mostra contagem regressiva (tempo restante)", (await page.locator(".playChip .t").innerText()).startsWith("−"));
 check("standby avança para o cue 2", (await page.locator("#standbyName").innerText()).includes("Deixa"));
 check("linha do cue marca 'tocando'", await page.locator("tr.cue.playing").count() === 1);
 const ctxState = await page.evaluate(() => !!window.AudioContext);
@@ -225,6 +227,13 @@ await page.fill('[data-f="ratePct"]', "100");
 await page.dispatchEvent('[data-f="ratePct"]', "input");
 await page.waitForTimeout(200);
 
+// ---------- 8f. clicar na waveform toca a partir do ponto ----------
+await page.click("#waveCv", { position: { x: 30, y: 40 } });
+await page.waitForTimeout(280);
+check("clique na waveform toca a partir daquele ponto", await page.locator(".playChip").count() === 1);
+await page.keyboard.press("Escape");
+await page.waitForTimeout(300);
+
 // ---------- 9. modo operação + autosave ----------
 await page.click("#modeBtn");
 await page.waitForTimeout(200);
@@ -236,6 +245,21 @@ check("autosave gravou alterações no servidor (PATCH)", patchCount > 0, `${pat
 await page.keyboard.press("ArrowDown");
 await page.waitForTimeout(150);
 check("setas movem o standby", (await page.locator("#standbyName").innerText()).includes("Parar"));
+
+// ---------- 10b. "ir para cue" digitando o número ----------
+await page.keyboard.press("2");
+await page.waitForTimeout(150);
+check("digitar número abre o 'ir para cue'", await page.locator("#gotoBox").isVisible());
+await page.keyboard.press("Enter");
+await page.waitForTimeout(200);
+check("Enter leva o standby ao cue digitado", (await page.locator("#standbyName").innerText()).includes("Deixa"));
+
+// ---------- 10c. tamanho da letra ----------
+await page.click("#fontPlus");
+await page.click("#fontPlus");
+await page.waitForTimeout(150);
+check("A+ aumenta a letra da lista", await page.evaluate(() =>
+  parseFloat(getComputedStyle(document.querySelector("table.cues")).fontSize) >= 16));
 
 // ---------- 11. checklist pré-show ----------
 await page.click("#preshowBtn");
@@ -253,6 +277,8 @@ check("manifest PWA declarado na página", await page.evaluate(() => !!document.
 // ---------- 12. recuperação de sessão após recarregar ----------
 await page.reload();
 await page.waitForSelector("#showsScreen:not(.hidden)", { timeout: 8000 });
+await page.waitForTimeout(400);
+check("botão de duplicar espetáculo presente", (await page.locator(".showItem .dup").count()) === 1);
 await page.click(".showItem");
 await page.waitForSelector("#opScreen:not(.hidden)", { timeout: 8000 });
 await page.waitForTimeout(700);

@@ -78,7 +78,7 @@
   .cueToolbar{display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
   .cueToolbar button{font-size:13px;padding:6px 11px}
   .cueListWrap{flex:1;overflow-y:auto}
-  table.cues{width:100%;border-collapse:collapse}
+  table.cues{width:100%;border-collapse:collapse;font-size:var(--listfs,14px)}
   table.cues th{position:sticky;top:0;background:var(--bg2);color:var(--tx3);font-size:11px;text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);z-index:2}
   table.cues td{padding:8px 10px;border-bottom:1px solid #171b21;vertical-align:middle}
   tr.cue{cursor:pointer;position:relative}
@@ -89,11 +89,11 @@
   tr.cue.playing .cueNm{color:#86efac}
   tr.cue.dragover{outline:2px dashed var(--accent);outline-offset:-2px}
   .cueNo{font-family:var(--mono);color:var(--tx2);width:52px}
-  .cueTy{width:34px;font-size:15px}
+  .cueTy{width:34px;font-size:1.08em}
   .cueNm{font-weight:600}
-  .cueSub{color:var(--tx3);font-size:12px}
-  .cueDur,.cueWait{font-family:var(--mono);font-size:12px;color:var(--tx2);width:70px}
-  .cueFollow{width:40px;color:var(--warn);font-size:13px}
+  .cueSub{color:var(--tx3);font-size:.88em}
+  .cueDur,.cueWait{font-family:var(--mono);font-size:.86em;color:var(--tx2);width:70px}
+  .cueFollow{width:40px;color:var(--warn);font-size:.95em}
   .prog{height:3px;background:#0f2417;border-radius:2px;overflow:hidden;margin-top:5px;display:none}
   tr.cue.playing .prog{display:block}
   .prog i{display:block;height:100%;background:var(--go);width:0%}
@@ -134,6 +134,10 @@
   .playChip{display:inline-flex;align-items:center;gap:6px;background:var(--playing);border:1px solid #14532d;color:#86efac;border-radius:8px;padding:3px 8px;margin:2px 4px 2px 0;font-size:12.5px;font-family:var(--mono)}
   .playChip.paused{border-color:var(--warn);color:var(--warn);background:#2a2005}
   .playChip button{padding:1px 6px;font-size:11px;border-radius:5px;background:transparent;border-color:#14532d;color:inherit}
+  .playChip.ending{border-color:var(--warn);color:var(--warn);animation:scBlink .6s steps(2,start) infinite}
+  @keyframes scBlink{to{opacity:.5}}
+  .deixa{font-size:12.5px;color:var(--warn);font-style:italic;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #gotoBox{font-size:13px;color:var(--accent);margin-top:3px;font-family:var(--mono)}
   .kbdHint{color:var(--tx3);font-size:11px}
   kbd{background:var(--bg3);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:11px}
   ::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#2a313c;border-radius:6px}
@@ -198,6 +202,8 @@
       <span class="dbVal" id="masterDb">0.0 dB</span>
       <canvas id="meterCv" width="160" height="52"></canvas>
     </div>
+    <button id="fontMinus" class="iconBtn" title="Diminuir a letra da lista">A−</button>
+    <button id="fontPlus" class="iconBtn" title="Aumentar a letra da lista">A+</button>
     <button id="preshowBtn" title="Checklist antes de abrir a casa">🎬 Pré-show</button>
     <button id="modeBtn" class="modeBtn">✏️ Edição</button>
     <div class="saveState" id="saveState"></div>
@@ -242,7 +248,9 @@
     <div class="standbyInfo">
       <div class="lbl">Em standby</div>
       <div class="nm" id="standbyName">—</div>
+      <div class="deixa" id="standbyNotes"></div>
       <div class="nx" id="nextName"></div>
+      <div id="gotoBox" class="hidden"></div>
     </div>
     <div class="playingNow" id="playingNow"></div>
     <div class="kbdHint"><kbd>Espaço</kbd> GO &nbsp; <kbd>↑↓</kbd> standby &nbsp; <kbd>P</kbd> pausa &nbsp; <kbd>F</kbd> fade geral &nbsp; <kbd>Esc</kbd> pânico &nbsp; <kbd>Ctrl+Z</kbd> desfaz</div>
@@ -429,7 +437,17 @@ async function loadShows() {
     el.className = 'showItem';
     el.innerHTML = '<span style="font-size:20px">🎭</span><span class="nm">' + esc(s.name) + '</span>' +
       '<span class="dt">' + new Date(s.updated_at).toLocaleDateString('pt-BR') + '</span>' +
-      '<button class="iconBtn rn">✏️</button><button class="iconBtn del">🗑</button>';
+      '<button class="iconBtn dup" title="Duplicar espetáculo">📄</button><button class="iconBtn rn">✏️</button><button class="iconBtn del">🗑</button>';
+    el.querySelector('.dup').onclick = async ev => {
+      ev.stopPropagation();
+      const { data: full, error } = await sb.from('stagecue_shows').select('*').eq('id', s.id).single();
+      if (error) { toast('Erro: ' + error.message); return; }
+      const { error: e2 } = await sb.from('stagecue_shows')
+        .insert({ user_id: user.id, name: full.name + ' (cópia)', data: full.data });
+      if (e2) { toast('Erro: ' + e2.message); return; }
+      toast('✓ Espetáculo duplicado (áudios compartilhados com o original)');
+      loadShows();
+    };
     el.querySelector('.rn').onclick = async ev => {
       ev.stopPropagation();
       const n = prompt('Novo nome:', s.name);
@@ -645,7 +663,7 @@ async function startAudioInstance(cue, opts) {
   const endAt = (cue.endAt && cue.endAt > startAt) ? Math.min(cue.endAt, buf.duration) : buf.duration;
   const regionDur = endAt - startAt;                     // em segundos de buffer
   const resume = opts.resumeOf || null;
-  const playedBuf = resume ? resume.pausedPos : 0;       // já tocado (segundos de buffer)
+  const playedBuf = resume ? resume.pausedPos : Math.max(0, opts.offset || 0); // já tocado (segundos de buffer)
   if (playedBuf >= regionDur && !cue.loop) { if (resume) instances.delete(resume.id); return; }
 
   const src = ctx.createBufferSource();
@@ -675,7 +693,7 @@ async function startAudioInstance(cue, opts) {
   const now = ctx.currentTime;
   const curve = cue.fadeCurve || 'log';
   const fadeIn = Math.max(0, cue.fadeIn || 0);
-  if (fadeIn > 0 && !resume) {
+  if (fadeIn > 0 && !resume && !opts.offset) {
     gain.gain.setValueAtTime(0.0001, now);
     scheduleRamp(gain.gain, 0.0001, Math.max(vol, 0.0001), now, fadeIn, curve);
   } else gain.gain.setValueAtTime(vol, now);
@@ -936,6 +954,7 @@ function renderTransport() {
   const cues = cueList();
   const sc = cues[standbyIdx];
   $('standbyName').textContent = sc ? (sc.number + ' · ' + TYPE_ICON[sc.type] + ' ' + (sc.name || '')) : '— fim da lista —';
+  $('standbyNotes').textContent = sc && sc.notes ? '📝 ' + sc.notes : '';
   const nx = cues[standbyIdx + 1];
   $('nextName').textContent = nx ? 'depois: ' + nx.number + ' · ' + (nx.name || '') : '';
   const pn = $('playingNow'); pn.innerHTML = '';
@@ -972,8 +991,11 @@ function tick() {
       const frac = inst.regionDur ? pos / inst.regionDur : 0;
       const tr = document.querySelector('tr.cue[data-id="' + inst.cue.id + '"] .prog i');
       if (tr) tr.style.width = (frac * 100) + '%';
-      const chip = document.querySelector('.playChip[data-inst="' + inst.id + '"] .t');
-      if (chip) chip.textContent = fmtT(pos / inst.rate) + (inst.loop ? ' ∞' : ' / ' + fmtT(inst.regionDur / inst.rate));
+      const chipEl = document.querySelector('.playChip[data-inst="' + inst.id + '"]');
+      const chip = chipEl && chipEl.querySelector('.t');
+      const remain = (inst.regionDur - pos) / inst.rate;
+      if (chip) chip.textContent = inst.loop ? fmtT(pos / inst.rate) + ' ∞' : '−' + fmtT(remain);
+      if (chipEl && !inst.loop && !inst.paused) chipEl.classList.toggle('ending', remain <= 10);
       if (selectedId === inst.cue.id) drawWavePlayhead(frac);
     }
   }
@@ -1163,7 +1185,17 @@ function attachWaveDrag(cue) {
     const { s, e } = wavePixels();
     if (Math.abs(x - s) < 10) dragging = 'start';
     else if (Math.abs(x - e) < 10) dragging = 'end';
-    if (dragging) cv.setPointerCapture(ev.pointerId);
+    if (dragging) { cv.setPointerCapture(ev.pointerId); return; }
+    // clique no meio: ouvir a partir daquele ponto
+    const t = x / cv.width * wavePeaks.dur;
+    const sT = cue.startAt || 0;
+    const eT = (cue.endAt && cue.endAt > sT) ? cue.endAt : wavePeaks.dur;
+    if (t > sT && t < eT) {
+      ensureCtx();
+      fadeInstances(cue.number, 0.05, null, true);
+      setTimeout(() => startAudioInstance(cue, { offset: t - sT }), 90);
+      toast('▶ Ouvindo a partir de ' + fmtT(t));
+    }
   };
   cv.onpointerup = () => { dragging = null; };
 }
@@ -1241,8 +1273,12 @@ function renderFileList(container) {
     el.querySelector('.rm').onclick = async () => {
       if (!confirm('Remover "' + f.name + '" da biblioteca?')) return;
       pushUndo();
-      try { await sb.storage.from(BUCKET).remove([f.key]); } catch (e) {}
-      idbDel(f.key);
+      // só apaga da nuvem se o arquivo foi enviado por ESTE espetáculo
+      // (espetáculos duplicados compartilham os áudios do original)
+      if (f.key.includes('/' + show.id + '/')) {
+        try { await sb.storage.from(BUCKET).remove([f.key]); } catch (e) {}
+        idbDel(f.key);
+      }
       show.data.files = show.data.files.filter(x => x.key !== f.key);
       markDirty(); renderInspector();
     };
@@ -1348,13 +1384,47 @@ document.addEventListener('keydown', e => {
     return;
   }
   if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); if (editMode) doUndo(); return; }
-  if (e.code === 'Space') { e.preventDefault(); go(); }
+  // "ir para cue": digite o número e Enter
+  if (/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    gotoBuf += e.key;
+    renderGotoBox();
+    return;
+  }
+  if (e.key === 'Backspace' && gotoBuf) { e.preventDefault(); gotoBuf = gotoBuf.slice(0, -1); renderGotoBox(); return; }
+  if (e.key === 'Enter' && gotoBuf) {
+    e.preventDefault();
+    const n = gotoBuf; gotoBuf = ''; renderGotoBox();
+    const idx = cueList().findIndex(c => String(c.number) === n || parseFloat(c.number) === parseFloat(n));
+    if (idx >= 0) { standbyIdx = idx; renderAll(); toast('⏩ Standby no cue ' + cueList()[idx].number); }
+    else toast('⚠ Cue ' + n + ' não encontrado');
+    return;
+  }
+  if (e.key === 'Escape' && gotoBuf) { e.preventDefault(); gotoBuf = ''; renderGotoBox(); return; }
+  if (e.code === 'Space') { e.preventDefault(); gotoBuf = ''; renderGotoBox(); go(); }
   else if (e.key === 'Escape') { e.preventDefault(); panic(); }
   else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); fadeAllOut(); }
   else if (e.key === 'ArrowDown') { e.preventDefault(); standbyIdx = Math.min(standbyIdx + 1, cueList().length - 1); renderAll(); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); standbyIdx = Math.max(standbyIdx - 1, 0); renderAll(); }
   else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePause(); }
 });
+
+// buffer do "ir para cue"
+let gotoBuf = '';
+function renderGotoBox() {
+  const b = $('gotoBox');
+  b.classList.toggle('hidden', !gotoBuf);
+  b.textContent = gotoBuf ? '⏩ Ir para cue ' + gotoBuf + '_  (Enter confirma · Esc cancela)' : '';
+}
+
+// tamanho da letra da lista de cues (A− / A+)
+function applyFontScale() {
+  const fs = Math.min(24, Math.max(11, lsGet('stagecue_listfs') || 14));
+  document.documentElement.style.setProperty('--listfs', fs + 'px');
+}
+$('fontMinus').onclick = () => { lsSet('stagecue_listfs', Math.max(11, (lsGet('stagecue_listfs') || 14) - 1)); applyFontScale(); };
+$('fontPlus').onclick = () => { lsSet('stagecue_listfs', Math.min(24, (lsGet('stagecue_listfs') || 14) + 1)); applyFontScale(); };
+applyFontScale();
 
 // evita fechar/atualizar sem querer durante o espetáculo
 window.addEventListener('beforeunload', e => {
