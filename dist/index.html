@@ -343,7 +343,7 @@
       <label for="authName">Seu nome</label>
       <input id="authName" placeholder="Ex.: Pedro">
     </div>
-    <input id="authCompany" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" placeholder="Empresa">
+    <input id="authTrap" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <label for="authEmail">E-mail</label>
     <input id="authEmail" type="email" placeholder="voce@exemplo.com" autocomplete="username">
     <label for="authPass">Senha</label>
@@ -602,17 +602,21 @@ $('authBtn').onclick = async () => {
   if (!email || !pass) { $('authErr').textContent = 'Preencha e-mail e senha.'; return; }
   $('authBtn').disabled = true;
   try {
-    if (authMode === 'signup') {
+    const isSignup = authMode === 'signup';
+    if (isSignup) {
       if (pass.length < 8) throw new Error('A senha precisa ter no mínimo 8 caracteres.');
       const r = await fetch(FN_BASE + '/signup', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ email, password: pass, name: $('authName').value.trim(), company: $('authCompany').value })
+        body: JSON.stringify({ email, password: pass, name: $('authName').value.trim(), company: $('authTrap').value })
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Falha ao criar conta.');
     }
     const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-    if (error) throw new Error(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message);
+    if (error) {
+      if (isSignup) throw new Error('Não foi possível concluir o cadastro. Recarregue a página e tente de novo.');
+      throw new Error(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message);
+    }
   } catch (e) {
     $('authErr').textContent = e.message;
   } finally { $('authBtn').disabled = false; }
